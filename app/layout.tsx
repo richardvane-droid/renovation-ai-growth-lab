@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 
-const title = "AI 营销增长工作台｜V4 交互原型";
+const title = "门店营销助手｜全屋定制店长操作演示";
 const description =
-  "装修行业 AI 营销增长工作台新版交互原型，覆盖视频增长、企微销售与断联召回的 25 个主页面及 15 个详情页。";
+  "给全屋定制店长的操作演示，包含短视频获客、企微自动接待和沉默客户跟进。页面均为演示数据，不会向真实客户发送消息。";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -32,9 +32,9 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [
         {
           url: `${baseUrl}/og.png`,
-          width: 1728,
-          height: 914,
-          alt: "AI 营销增长工作台 V4 交互原型",
+          width: 1672,
+          height: 941,
+          alt: "门店营销助手：全屋定制店长操作演示",
         },
       ],
     },
