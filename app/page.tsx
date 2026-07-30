@@ -1,1098 +1,283 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  allScreens,
+  detailScreens,
+  mainScreens,
+  moduleMeta,
+  ModuleKey,
+} from "./prototype-data";
+import { ScreenContent } from "./prototype-screens";
 
-type ModuleKey = "video" | "sales" | "recall";
+const moduleOrder: ModuleKey[] = ["video", "sales", "recall"];
 
-type ModuleConfig = {
-  key: ModuleKey;
-  index: string;
-  label: string;
-  title: string;
-  description: string;
-  metric: string;
-  stages: { key: string; label: string; kicker: string; questions: string[] }[];
-};
+export default function PrototypeHub() {
+  const [activeId, setActiveId] = useState("video-business");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const screen = allScreens.find((item) => item.id === activeId) ?? allScreens[0];
 
-const modules: ModuleConfig[] = [
-  {
-    key: "video",
-    index: "01",
-    label: "视频增长",
-    title: "从抖音线索挖掘到可用视频",
-    description: "用偏好校准理解业务，从竞品爆款中选择结构，再调用真实素材自动生成获客视频。",
-    metric: "每日 1 条可用成片",
-    stages: [
-      {
-        key: "calibration",
-        label: "业务校准",
-        kicker: "首次引导",
-        questions: ["10 条样本是否足以识别业务偏好？", "素材切片描述需要多细，用户才愿意信任？"],
-      },
-      {
-        key: "benchmark",
-        label: "爆款监控",
-        kicker: "每日任务",
-        questions: ["什么指标决定一条视频值得模仿？", "如何解释“参考结构”而不是“复制内容”？"],
-      },
-      {
-        key: "generation",
-        label: "视频生成",
-        kicker: "结果交付",
-        questions: ["哪些制作过程需要向用户透明？", "成片验收需要哪些自动质量检查？"],
-      },
-    ],
-  },
-  {
-    key: "sales",
-    index: "02",
-    label: "企微销售",
-    title: "从加企业微信到聊天到店",
-    description: "训练销售机器人、监控真实对话、修正常见问答，并通过插件完成报价、量房和需求收集。",
-    metric: "提升到店预约率",
-    stages: [
-      {
-        key: "training",
-        label: "机器人训练",
-        kicker: "首次引导",
-        questions: ["100 组模拟演练如何降低标注负担？", "提示词应该开放到什么程度让运营修改？"],
-      },
-      {
-        key: "operations",
-        label: "聊天运营",
-        kicker: "每日任务",
-        questions: ["质检排序优先看成交意愿还是风险？", "高频问答怎样形成可持续的人工修正闭环？"],
-      },
-      {
-        key: "plugins",
-        label: "插件中心",
-        kicker: "自动能力",
-        questions: ["插件触发条件如何让运营人员看得懂？", "自动报价和预约服务的人工兜底点在哪里？"],
-      },
-    ],
-  },
-  {
-    key: "recall",
-    index: "03",
-    label: "断联召回",
-    title: "断联后累积 7 次智能召回",
-    description: "管理活动内容、分析历史召回效果，并根据装修阶段、联系阶段和信任分生成个性化触达。",
-    metric: "提高断联回复率",
-    stages: [
-      {
-        key: "activities",
-        label: "活动管理",
-        kicker: "内容准备",
-        questions: ["活动有效期和库存变化如何阻止错误发送？", "海报与活动权益是否需要审批流？"],
-      },
-      {
-        key: "dashboard",
-        label: "召回运营",
-        kicker: "每日运营",
-        questions: ["信任分由哪些行为构成才容易解释？", "第几次召回应允许人工干预或停止？"],
-      },
-      {
-        key: "plugins",
-        label: "召回插件",
-        kicker: "自动能力",
-        questions: ["知识海报应基于客户阶段还是最近问题？", "体验券如何避免频繁发送和权益滥用？"],
-      },
-    ],
-  },
-];
+  useEffect(() => {
+    const id = window.location.hash.replace("#", "");
+    if (allScreens.some((item) => item.id === id)) {
+      setActiveId(id);
+      setDetailsOpen(Boolean(detailScreens.find((item) => item.id === id)));
+    }
+  }, []);
 
-const competitorVideos = [
-  ["小户型扩容", "12.8%", "86"],
-  ["奶油风全屋", "11.4%", "81"],
-  ["报价避坑", "10.2%", "78"],
-  ["柜体收纳", "9.8%", "74"],
-  ["设计前后", "9.1%", "72"],
-  ["板材对比", "8.7%", "69"],
-  ["工地巡检", "8.2%", "67"],
-  ["门店案例", "7.9%", "64"],
-];
-
-const chatRows = [
-  ["王女士", "方案对比", "92", "预算与报价", "待标注"],
-  ["刘先生", "需求确认", "86", "板材环保", "优秀"],
-  ["赵女士", "到店预约", "78", "门店地址", "需优化"],
-  ["陈先生", "初次咨询", "64", "风格选择", "待标注"],
-];
-
-const recallRows = [
-  ["王女士", "方案对比", "第 2 次", "82", "1 天 1 条知识"],
-  ["刘先生", "预算确认", "第 4 次", "68", "3 天 1 张海报"],
-  ["赵女士", "等待量房", "第 1 次", "55", "发送体验券"],
-  ["周先生", "暂缓装修", "第 6 次", "41", "7 天温和提醒"],
-];
-
-function Badge({
-  children,
-  tone = "blue",
-}: {
-  children: React.ReactNode;
-  tone?: "blue" | "green" | "amber" | "purple" | "gray" | "red";
-}) {
-  return <span className={`badge badge-${tone}`}>{children}</span>;
-}
-
-function Progress({ value, tone = "blue" }: { value: number; tone?: string }) {
-  return (
-    <span className="progress" aria-label={`进度 ${value}%`}>
-      <span className={`progress-fill progress-${tone}`} style={{ width: `${value}%` }} />
-    </span>
+  const moduleScreens = useMemo(
+    () => mainScreens.filter((item) => item.module === screen.module),
+    [screen.module],
   );
-}
-
-function Stat({
-  label,
-  value,
-  change,
-}: {
-  label: string;
-  value: string;
-  change: string;
-}) {
-  return (
-    <div className="stat-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{change}</small>
-    </div>
+  const moduleDetails = useMemo(
+    () => detailScreens.filter((item) => item.module === screen.module),
+    [screen.module],
   );
-}
-
-function SectionHead({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="section-head">
-      <div>
-        <h3>{title}</h3>
-        {description && <p>{description}</p>}
-      </div>
-      {action}
-    </div>
+  const currentMainIndex = Math.max(
+    0,
+    moduleScreens.findIndex((item) => item.id === (screen.detail ? screen.parent : screen.id)),
   );
-}
+  const nextScreen = moduleScreens[currentMainIndex + 1];
 
-function VideoCalibration() {
-  const [niche, setNiche] = useState("全屋定制");
-  const niches = ["全屋定制", "设计师", "装修公司", "材料供应商", "软装门店", "施工团队"];
-
-  return (
-    <div className="screen-grid calibration-grid">
-      <section className="panel">
-        <SectionHead title="1. 选择业务细分" description="系统从已抓取内容中匹配首批样本" />
-        <div className="choice-grid">
-          {niches.map((item) => (
-            <button
-              className={niche === item ? "choice active" : "choice"}
-              key={item}
-              onClick={() => setNiche(item)}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-        <div className="insight-box">
-          <Badge tone="blue">AI 业务画像</Badge>
-          <p>
-            当前偏好：真实空间改造、柜体收纳与工艺细节；减少纯口播，优先使用“痛点开场 + 前后对比 + 到店领取方案”。
-          </p>
-        </div>
-      </section>
-
-      <section className="panel">
-        <SectionHead title="2. 匹配视频标注" description={`已为「${niche}」匹配 10 条视频`} />
-        <div className="mini-video-grid">
-          {["小户型扩容", "板材避坑", "柜体细节", "报价拆解", "安装过程", "门店案例"].map(
-            (name, index) => (
-              <div className="mini-video" key={name}>
-                <div className={`thumbnail thumbnail-${(index % 4) + 1}`}>
-                  <span>▶</span>
-                  <small>00:{18 + index * 3}</small>
-                </div>
-                <b>{name}</b>
-                <div className="vote-row">
-                  <button className={index === 0 ? "selected" : ""}>匹配</button>
-                  <button>不匹配</button>
-                </div>
-              </div>
-            ),
-          )}
-        </div>
-      </section>
-
-      <section className="panel panel-wide">
-        <SectionHead
-          title="3. 真实素材与自动切片"
-          description="上传业务视频和门店形象；系统按镜头变化、动作和语义自动分段"
-          action={<button className="button button-primary">＋ 上传视频</button>}
-        />
-        <div className="asset-row">
-          <div className="asset-thumb thumbnail-2">00:42</div>
-          <div className="asset-meta">
-            <b>衣柜安装实拍.mp4</b>
-            <span>已切割 4 段 · 92.4 MB</span>
-            <Progress value={100} tone="green" />
-          </div>
-          <Badge tone="green">分析完成</Badge>
-        </div>
-        <div className="segments">
-          {[
-            ["00:00–00:08", "进店前后对比"],
-            ["00:08–00:19", "板材细节展示"],
-            ["00:19–00:31", "安装工艺讲解"],
-            ["00:31–00:42", "完工空间全景"],
-          ].map(([time, label]) => (
-            <div className="segment" key={time}>
-              <strong>{time}</strong>
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function VideoBenchmark({
-  selected,
-  onSelect,
-}: {
-  selected: number;
-  onSelect: (value: number) => void;
-}) {
-  return (
-    <div className="screen-grid benchmark-grid">
-      <section className="panel panel-main">
-        <SectionHead
-          title="今日竞品爆款 TOP 10"
-          description="每日 09:00 自动更新 · 按互动率与获客意向综合排序"
-          action={<Badge tone="green">监控已更新</Badge>}
-        />
-        <div className="video-card-grid">
-          {competitorVideos.map(([name, rate, score], index) => (
-            <button
-              className={selected === index ? "video-card selected" : "video-card"}
-              key={name}
-              onClick={() => onSelect(index)}
-            >
-              <div className={`video-cover thumbnail-${(index % 4) + 1}`}>
-                <Badge tone={index < 3 ? "amber" : "gray"}>#{index + 1}</Badge>
-                <span className="play">▶</span>
-              </div>
-              <b>{name}</b>
-              <span>{rate} 互动率</span>
-              <Progress value={Number(score)} />
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <aside className="panel detail-panel">
-        <SectionHead title="爆款拆解" description={`已选择 #${selected + 1} ${competitorVideos[selected][0]}`} />
-        <ol className="structure-list">
-          {[
-            ["3 秒钩子", "8㎡卧室，收纳多出 30%"],
-            ["冲突痛点", "空间小、东西多、动线乱"],
-            ["方案证明", "真实前后对比 + 尺寸展示"],
-            ["转化动作", "领取同户型规划方案"],
-          ].map(([title, text], index) => (
-            <li key={title}>
-              <i>{index + 1}</i>
-              <div>
-                <b>{title}</b>
-                <span>{text}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div className="metric-stack">
-          <div>
-            <span>完播率</span>
-            <strong>68.4%</strong>
-          </div>
-          <Progress value={68} tone="green" />
-          <div>
-            <span>评论获客意向</span>
-            <strong>高</strong>
-          </div>
-          <Progress value={82} tone="amber" />
-        </div>
-        <button className="button button-primary button-full">用已选视频生成</button>
-      </aside>
-    </div>
-  );
-}
-
-function VideoGeneration() {
-  const [done, setDone] = useState(false);
-  const logs = [
-    ["脚本结构解析完成", true],
-    ["业务素材匹配完成", true],
-    ["镜头切割与节奏重排", true],
-    ["口播字幕与卖点生成", true],
-    ["品牌门店片尾合成", done],
-    ["导出与安全检查", done],
-  ] as const;
-
-  return (
-    <div className="screen-grid generation-grid">
-      <section className="panel log-panel">
-        <SectionHead title="制作进展" description={done ? "任务已完成" : "预计剩余 01:26"} />
-        <div className="task-progress">
-          <span>{done ? "100%" : "88%"}</span>
-          <Progress value={done ? 100 : 88} />
-        </div>
-        <ol className="timeline">
-          {logs.map(([label, complete], index) => (
-            <li className={complete ? "complete" : ""} key={label}>
-              <i>{complete ? "✓" : index + 1}</i>
-              <div>
-                <b>{label}</b>
-                <span>09:{32 + index}:0{index}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div className="console-line">AI_LOG · {done ? "导出完成，等待下载" : "字幕时间轴对齐中…"}</div>
-      </section>
-
-      <section className="panel preview-panel">
-        <SectionHead title="成片预览" description="竖版 9:16 · 32 秒" />
-        <div className="phone-video">
-          <small>全屋定制 · 杭州</small>
-          <div>
-            <strong>8㎡卧室</strong>
-            <b>收纳翻倍方案</b>
-          </div>
-          <span>镜头 06 / 09</span>
-          <button>领取同户型规划</button>
-        </div>
-      </section>
-
-      <aside className="panel qa-panel">
-        <SectionHead title="质量检查" description="自动审核" />
-        {[
-          ["脚本一致性", "96"],
-          ["画面清晰度", "92"],
-          ["品牌安全", "通过"],
-          ["口播节奏", "良好"],
-        ].map(([label, value]) => (
-          <div className="qa-row" key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-        <button className="button button-primary button-full" onClick={() => setDone(true)}>
-          {done ? "下载今日成片" : "完成生成演示"}
-        </button>
-      </aside>
-    </div>
-  );
-}
-
-function SalesTraining() {
-  return (
-    <div className="screen-grid training-grid">
-      <section className="panel training-steps">
-        <SectionHead title="机器人训练引导" description="完成后即可接管企微聊天" />
-        {[
-          ["1", "销售培训资料", "已上传 6 份", true],
-          ["2", "冠军对话样本", "10 / 10 段", true],
-          ["3", "模拟演练标注", "68 / 100", false],
-          ["4", "风格与规则", "待确认", false],
-        ].map(([number, title, detail, done], index) => (
-          <div className="training-step" key={String(title)}>
-            <i className={done ? "done" : index === 2 ? "current" : ""}>{done ? "✓" : number}</i>
-            <div>
-              <b>{title}</b>
-              <span>{detail}</span>
-            </div>
-          </div>
-        ))}
-        <button className="button button-primary button-full">继续标注</button>
-      </section>
-
-      <section className="panel conversation-panel">
-        <SectionHead title="模拟演练 · 第 69 / 100 组" description="请判断机器人回复质量" />
-        <div className="chat-bubble customer">
-          <small>客户</small>
-          <p>90㎡全屋定制大概多少钱？</p>
-        </div>
-        <div className="chat-bubble robot">
-          <small>AI 销售机器人</small>
-          <p>可以先按 3 个配置档给您估算。方便发一下户型，或者告诉我是几室几厅吗？</p>
-        </div>
-        <div className="rating-row">
-          <span>话术专业度</span>
-          {[1, 2, 3, 4, 5].map((score) => (
-            <button className={score === 4 ? "active" : ""} key={score}>
-              {score}
-            </button>
-          ))}
-          <button className="button button-primary">提交评分</button>
-        </div>
-      </section>
-
-      <section className="panel prompt-panel panel-wide">
-        <SectionHead
-          title="机器人整体风格与规则"
-          description="可增删改，发布后立即生效"
-          action={
-            <div className="badge-row">
-              <Badge>专业顾问</Badge>
-              <Badge tone="purple">先问后答</Badge>
-              <Badge tone="green">不强推销</Badge>
-            </div>
-          }
-        />
-        <div className="prompt-editor">
-          <code>SYSTEM PROMPT</code>
-          <p>
-            你是一名全屋定制销售顾问。先确认户型、地址、预算和风格偏好，再给出分档建议；报价须标注范围与影响因素；遇到复杂问题转人工，不承诺未核实的工期与折扣。
-          </p>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function SalesOperations() {
-  return (
-    <div className="operations-stack">
-      <div className="stat-grid">
-        <Stat label="新增会话" value="128" change="+12.4%" />
-        <Stat label="高意向客户" value="24" change="+8 人" />
-        <Stat label="到店预约" value="11" change="8.6%" />
-        <Stat label="人工接管率" value="6.2%" change="-1.4%" />
-      </div>
-      <div className="screen-grid operations-grid">
-        <section className="panel panel-main">
-          <SectionHead
-            title="真实对话质检"
-            description="成交意愿从高到低 · 最新优先"
-            action={<button className="button button-secondary">筛选</button>}
-          />
-          <div className="data-table">
-            <div className="table-row table-head">
-              <span>客户 / 阶段</span>
-              <span>意愿</span>
-              <span>最近问题</span>
-              <span>质检</span>
-            </div>
-            {chatRows.map(([name, stage, score, question, result]) => (
-              <div className="table-row" key={name}>
-                <span>
-                  <b>{name}</b>
-                  <small>{stage}</small>
-                </span>
-                <span>
-                  <Badge tone={Number(score) > 80 ? "green" : "amber"}>{score}</Badge>
-                </span>
-                <span>{question}</span>
-                <span>
-                  <Badge tone={result === "优秀" ? "green" : result === "需优化" ? "red" : "blue"}>
-                    {result}
-                  </Badge>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-        <aside className="panel faq-panel">
-          <SectionHead title="高频问题聚合" description="优先修正问得最多的问题" />
-          {[
-            ["全屋定制怎么报价？", "82", "已优化"],
-            ["用什么板材？环保吗？", "67", "待调整"],
-            ["多久可以装完？", "51", "待调整"],
-            ["可以免费量房吗？", "46", "已优化"],
-          ].map(([question, count, status]) => (
-            <div className="faq-row" key={question}>
-              <div>
-                <b>{question}</b>
-                <span>{count} 次</span>
-              </div>
-              <Badge tone={status === "已优化" ? "green" : "amber"}>{status}</Badge>
-              <Progress value={Number(count)} tone={status === "已优化" ? "green" : "purple"} />
-            </div>
-          ))}
-        </aside>
-      </div>
-    </div>
-  );
-}
-
-const salesPlugins = [
-  ["A", "户型图 + 风格", "客户发户型图后自动返回同类方案", "已开通"],
-  ["B", "自动报价方案", "识别户型后生成分档报价明细", "配置中"],
-  ["C", "免费上门量房", "收集预算与地址并调度装修公司", "已开通"],
-  ["D", "风格选择题", "多轮效果图选择补全客户画像", "未开通"],
-];
-
-function SalesPlugins({
-  selected,
-  onSelect,
-}: {
-  selected: number;
-  onSelect: (value: number) => void;
-}) {
-  const plugin = salesPlugins[selected];
-  return (
-    <div className="screen-grid plugin-grid">
-      <section className="plugin-list-grid">
-        {salesPlugins.map(([letter, title, description, status], index) => (
-          <button
-            className={selected === index ? "panel plugin-card selected" : "panel plugin-card"}
-            key={letter}
-            onClick={() => onSelect(index)}
-          >
-            <i>{letter}</i>
-            <div>
-              <b>{title}</b>
-              <p>{description}</p>
-            </div>
-            <Badge tone={status === "已开通" ? "green" : status === "配置中" ? "purple" : "amber"}>
-              {status}
-            </Badge>
-          </button>
-        ))}
-      </section>
-      <aside className="panel plugin-config">
-        <SectionHead title={`插件 ${plugin[0]} · ${plugin[1]}`} description="触发条件 → 自动动作 → 人工兜底" />
-        <label>
-          触发条件
-          <span>识别到面积 + 户型</span>
-        </label>
-        <label>
-          自动执行
-          <span>生成基础 / 品质 / 高配三档方案</span>
-        </label>
-        <div className="flow-list">
-          {["提取面积、房型与城市", "匹配门店报价库", "生成材料与费用明细", "创建销售跟进任务"].map(
-            (item, index) => (
-              <div key={item}>
-                <i>0{index + 1}</i>
-                <span>{item}</span>
-              </div>
-            ),
-          )}
-        </div>
-        <label className="check-line">
-          <input defaultChecked type="checkbox" />
-          报价后自动创建人工跟进任务
-        </label>
-        <button className="button button-primary button-full">保存配置</button>
-      </aside>
-    </div>
-  );
-}
-
-function RecallActivities() {
-  return (
-    <div className="screen-grid activity-grid">
-      <section className="panel activity-form">
-        <SectionHead title="新增活动信息" description="重点配置活动周期、目标客群与权益" />
-        {[
-          ["活动名称", "国庆全屋定制焕新季"],
-          ["活动周期", "2026.09.20 — 2026.10.08"],
-          ["目标客群", "报价后未到店 · 信任分 40+"],
-          ["核心权益", "免费量房 + 3D 方案 + 到店礼"],
-        ].map(([label, value]) => (
-          <label key={label}>
-            {label}
-            <input defaultValue={value} />
-          </label>
-        ))}
-        <div className="poster-upload">
-          <div>海报预览</div>
-          <button className="button button-secondary">替换海报</button>
-          <button className="button button-primary">保存活动</button>
-        </div>
-      </section>
-      <section className="panel activity-list">
-        <SectionHead
-          title="存量活动"
-          description="可启停、编辑或删除"
-          action={<Badge tone="green">2 个进行中</Badge>}
-        />
-        {[
-          ["国庆焕新季", "09.20–10.08", "进行中", "128 人"],
-          ["免费量房周", "08.01–08.07", "已结束", "96 人"],
-          ["环保板材公开课", "07.18–07.31", "已结束", "74 人"],
-          ["老客户转介绍", "长期", "进行中", "53 人"],
-        ].map(([name, time, status, people]) => (
-          <div className="activity-row" key={name}>
-            <i className={status === "进行中" ? "on" : ""} />
-            <div>
-              <b>{name}</b>
-              <span>
-                {time} · {people}
-              </span>
-            </div>
-            <Badge tone={status === "进行中" ? "green" : "gray"}>{status}</Badge>
-            <button>编辑 ···</button>
-          </div>
-        ))}
-        <div className="sync-note">活动信息将同步到知识海报与体验券插件</div>
-      </section>
-    </div>
-  );
-}
-
-function RecallDashboard() {
-  return (
-    <div className="operations-stack">
-      <div className="stat-grid">
-        <Stat label="召回中" value="68" change="+9 人" />
-        <Stat label="已回复" value="21" change="30.9%" />
-        <Stat label="预约量房" value="8" change="11.8%" />
-        <Stat label="停止触达" value="5" change="-2 人" />
-      </div>
-      <div className="screen-grid recall-grid">
-        <section className="panel chart-panel">
-          <SectionHead title="7 次触达阶段分布" description="第 3 次后回复率最高" />
-          <div className="bar-chart" aria-label="7 次召回人数分布图">
-            {[18, 16, 12, 9, 6, 4, 3].map((value, index) => (
-              <div key={index}>
-                <span style={{ height: `${value * 5}px` }} />
-                <small>{index + 1}</small>
-              </div>
-            ))}
-          </div>
-          <div className="chart-caption">
-            <strong>30.9%</strong>
-            <span>近 14 天回复率 · +6.4%</span>
-          </div>
-        </section>
-        <section className="panel user-pool">
-          <SectionHead
-            title="召回用户池"
-            description="信任分从高到低 · 最近触达优先"
-            action={<input aria-label="搜索客户" placeholder="搜索客户…" />}
-          />
-          <div className="data-table recall-table">
-            <div className="table-row table-head">
-              <span>客户</span>
-              <span>装修阶段</span>
-              <span>联系阶段</span>
-              <span>信任分</span>
-              <span>召回策略</span>
-            </div>
-            {recallRows.map(([name, stage, contact, trust, strategy]) => (
-              <div className="table-row" key={name}>
-                <span>
-                  <b>{name}</b>
-                </span>
-                <span>{stage}</span>
-                <span>
-                  <Badge>{contact}</Badge>
-                </span>
-                <strong>{trust}</strong>
-                <span>{strategy}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function RecallPlugins() {
-  const [selected, setSelected] = useState(0);
-  return (
-    <div className="screen-grid recall-plugin-grid">
-      <section className="panel recall-plugin-list">
-        <SectionHead title="召回插件" description="与 7 次召回策略联动" />
-        {[
-          ["A", "个性化知识海报", "按阶段生成知识内容"],
-          ["B", "免费上门体验券", "量房 + 方案权益券"],
-        ].map(([letter, title, description], index) => (
-          <button
-            className={selected === index ? "recall-plugin-card active" : "recall-plugin-card"}
-            key={letter}
-            onClick={() => setSelected(index)}
-          >
-            <i>{letter}</i>
-            <div>
-              <b>{title}</b>
-              <span>{description}</span>
-            </div>
-            <Badge tone="green">已启用</Badge>
-          </button>
-        ))}
-        <div className="strategy-note">
-          <b>当前策略</b>
-          <span>知识 4 次 · 权益 2 次 · 关怀 1 次</span>
-          <Progress value={100} />
-        </div>
-      </section>
-      <section className="panel poster-preview-panel">
-        <SectionHead title={selected === 0 ? "个性化知识海报" : "免费上门体验券"} description="客户：刘先生 · 预算确认阶段" />
-        <div className={selected === 0 ? "knowledge-poster" : "knowledge-poster coupon"}>
-          <small>{selected === 0 ? "装修预算指南" : "专属到店权益"}</small>
-          <strong>{selected === 0 ? "预算 20 万" : "免费上门量房"}</strong>
-          <b>{selected === 0 ? "如何分配更合理？" : "赠送初步平面方案"}</b>
-          {selected === 0 ? (
-            <>
-              <span>柜体 28%</span>
-              <Progress value={58} />
-              <span>硬装 42%</span>
-              <Progress value={82} tone="purple" />
-              <span>软装 30%</span>
-              <Progress value={66} tone="green" />
-            </>
-          ) : (
-            <div className="coupon-code">7 天内有效 · HZ0286</div>
-          )}
-        </div>
-      </section>
-      <aside className="panel cadence-panel">
-        <SectionHead title="发送节奏" description="发送前人工审核" />
-        {[
-          ["D1", "预算知识", "已发送"],
-          ["D2", "板材避坑", "已发送"],
-          ["D3", "案例对比", "待审核"],
-          ["D4", "免费量房券", "已排期"],
-          ["D5", "工期清单", "自动生成"],
-          ["D6", "活动权益", "自动生成"],
-          ["D7", "温和收口", "自动生成"],
-        ].map(([day, content, status], index) => (
-          <div className="cadence-row" key={day}>
-            <i className={index < 2 ? "done" : index === 2 ? "current" : ""}>{day}</i>
-            <div>
-              <b>{content}</b>
-              <span>{status}</span>
-            </div>
-          </div>
-        ))}
-      </aside>
-    </div>
-  );
-}
-
-function BrainstormStrip({ questions }: { questions: string[] }) {
-  return (
-    <div className="brainstorm-strip">
-      <span>本轮讨论问题</span>
-      {questions.map((question, index) => (
-        <p key={question}>
-          <i>{index + 1}</i>
-          {question}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function ProductScreen({
-  module,
-  stageKey,
-  selectedVideo,
-  setSelectedVideo,
-  selectedPlugin,
-  setSelectedPlugin,
-}: {
-  module: ModuleConfig;
-  stageKey: string;
-  selectedVideo: number;
-  setSelectedVideo: (value: number) => void;
-  selectedPlugin: number;
-  setSelectedPlugin: (value: number) => void;
-}) {
-  let content: React.ReactNode = null;
-  if (module.key === "video") {
-    if (stageKey === "calibration") content = <VideoCalibration />;
-    if (stageKey === "benchmark")
-      content = <VideoBenchmark selected={selectedVideo} onSelect={setSelectedVideo} />;
-    if (stageKey === "generation") content = <VideoGeneration />;
-  }
-  if (module.key === "sales") {
-    if (stageKey === "training") content = <SalesTraining />;
-    if (stageKey === "operations") content = <SalesOperations />;
-    if (stageKey === "plugins")
-      content = <SalesPlugins selected={selectedPlugin} onSelect={setSelectedPlugin} />;
-  }
-  if (module.key === "recall") {
-    if (stageKey === "activities") content = <RecallActivities />;
-    if (stageKey === "dashboard") content = <RecallDashboard />;
-    if (stageKey === "plugins") content = <RecallPlugins />;
+  function goTo(id: string) {
+    const target = allScreens.find((item) => item.id === id);
+    if (!target) return;
+    setActiveId(id);
+    setDetailsOpen(Boolean(target.detail));
+    window.history.replaceState(null, "", `#${id}`);
+    document.querySelector(".workspace-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const stage = module.stages.find((item) => item.key === stageKey) ?? module.stages[0];
-
-  return (
-    <>
-      <BrainstormStrip questions={stage.questions} />
-      <div className={`prototype-shell theme-${module.key}`}>
-        <aside className="product-sidebar">
-          <div className="product-brand">
-            <i>AI</i>
-            <div>
-              <b>智营增长</b>
-              <span>装修行业工作台</span>
-            </div>
-          </div>
-          <nav>
-            {modules.map((item) => (
-              <div className={item.key === module.key ? "side-nav active" : "side-nav"} key={item.key}>
-                <i>{item.index}</i>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </nav>
-          <div className="automation-status">
-            <span>AI 自动执行</span>
-            <b>
-              <i /> 运行正常
-            </b>
-          </div>
-        </aside>
-        <main className="product-main">
-          <header className="product-toolbar">
-            <div>
-              <small>{stage.kicker}</small>
-              <h2>{stage.label}</h2>
-            </div>
-            <div className="toolbar-actions">
-              <Badge tone="green">数据已更新</Badge>
-              <span className="avatar">杜</span>
-              <b>杜先生</b>
-            </div>
-          </header>
-          <div className="product-content">{content}</div>
-        </main>
-      </div>
-    </>
-  );
-}
-
-export default function Home() {
-  const [activeModule, setActiveModule] = useState<ModuleKey>("video");
-  const [stageByModule, setStageByModule] = useState<Record<ModuleKey, string>>({
-    video: "calibration",
-    sales: "training",
-    recall: "activities",
-  });
-  const [selectedVideo, setSelectedVideo] = useState(0);
-  const [selectedPlugin, setSelectedPlugin] = useState(1);
-  const [copied, setCopied] = useState(false);
-
-  const module = useMemo(
-    () => modules.find((item) => item.key === activeModule) ?? modules[0],
-    [activeModule],
-  );
-
-  function changeModule(key: ModuleKey) {
-    setActiveModule(key);
+  function notify(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2200);
   }
 
   async function copyLink() {
     await navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    notify("当前页面链接已复制，可直接发给团队");
   }
 
   return (
-    <main className="site">
-      <header className="site-header">
-        <a className="site-logo" href="#top" aria-label="返回顶部">
-          <span>AI</span>
+    <main className={`product-app module-${screen.module}`}>
+      <aside className="sidebar">
+        <div className="brand">
+          <i>AI</i>
           <div>
             <b>营销增长工作台</b>
-            <small>产品草图评审 · V0.1</small>
+            <span>单模块任务模式 · V4</span>
           </div>
-        </a>
-        <nav className="site-nav" aria-label="页面导航">
-          <a href="#overview">业务总览</a>
-          <a href="#prototype">交互草图</a>
-          <a href="#discussion">讨论建议</a>
+        </div>
+
+        <p className="nav-heading">增长链路</p>
+        <nav className="module-nav" aria-label="增长链路">
+          {moduleOrder.map((key) => (
+            <button
+              className={screen.module === key ? "active" : ""}
+              key={key}
+              onClick={() => goTo(mainScreens.find((item) => item.module === key)?.id ?? "")}
+              type="button"
+            >
+              <i>{moduleMeta[key].index}</i>
+              <span>{moduleMeta[key].label}</span>
+            </button>
+          ))}
         </nav>
-        <button className="button button-dark" onClick={copyLink}>
-          {copied ? "链接已复制" : "复制评审链接"}
+
+        <p className="nav-heading">
+          {moduleMeta[screen.module].label} · {moduleMeta[screen.module].caption}
+        </p>
+        <nav className="screen-nav" aria-label={`${moduleMeta[screen.module].label}页面`}>
+          {moduleScreens.map((item) => (
+            <button
+              className={item.id === screen.id || item.id === screen.parent ? "active" : ""}
+              key={item.id}
+              onClick={() => goTo(item.id)}
+              type="button"
+            >
+              <i>{item.id === screen.id || item.id === screen.parent ? "●" : "○"}</i>
+              <span>{item.index}　{item.title}</span>
+            </button>
+          ))}
+        </nav>
+
+        <button
+          className="details-toggle"
+          onClick={() => setDetailsOpen((value) => !value)}
+          type="button"
+        >
+          <span>关联详情页 · {moduleDetails.length}</span>
+          <i>{detailsOpen ? "−" : "+"}</i>
         </button>
-      </header>
+        {detailsOpen && (
+          <nav className="detail-nav" aria-label="关联详情页">
+            {moduleDetails.map((item) => (
+              <button
+                className={item.id === screen.id ? "active" : ""}
+                key={item.id}
+                onClick={() => goTo(item.id)}
+                type="button"
+              >
+                <i>{item.index}</i>
+                <span>{item.title}</span>
+              </button>
+            ))}
+          </nav>
+        )}
 
-      <section className="hero" id="top">
-        <div className="hero-copy">
-          <Badge tone="blue">团队头脑风暴版 · 2026.07</Badge>
-          <h1>
-            把装修营销的三条增长链路，
-            <br />
-            放进同一个 <em>AI 工作台</em>
-          </h1>
-          <p>
-            这是用于讨论产品方向的 HTML 草图，不代表最终视觉稿。请重点评审任务顺序、人工介入点、数据指标与自动化边界。
-          </p>
-          <div className="hero-actions">
-            <a className="button button-primary" href="#prototype">
-              开始浏览草图
-            </a>
-            <a className="button button-secondary" href="#discussion">
-              查看讨论提纲
-            </a>
-          </div>
+        <div className="sidebar-foot">
+          <span>原型覆盖</span>
+          <b>25 个主页面 + 15 个详情页</b>
+          <small>真实案例与业务模拟数据</small>
         </div>
-        <div className="hero-board" aria-label="三条业务链路概览">
-          <div className="hero-board-head">
-            <span>今日增长任务</span>
-            <Badge tone="green">系统运行正常</Badge>
-          </div>
-          {modules.map((item, index) => (
-            <div className="hero-task" key={item.key}>
-              <i>0{index + 1}</i>
-              <div>
-                <b>{item.title}</b>
-                <span>{item.metric}</span>
-              </div>
-              <Progress value={[82, 64, 71][index]} tone={item.key === "recall" ? "green" : item.key === "sales" ? "purple" : "blue"} />
-            </div>
-          ))}
-          <div className="hero-metrics">
-            <div>
-              <strong>328</strong>
-              <span>本周新增线索</span>
-            </div>
-            <div>
-              <strong>24</strong>
-              <span>高意向客户</span>
-            </div>
-            <div>
-              <strong>30.9%</strong>
-              <span>召回回复率</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      </aside>
 
-      <section className="overview" id="overview">
-        <div className="eyebrow">THREE GROWTH LOOPS</div>
-        <div className="overview-heading">
+      <section className="app-main">
+        <header className="app-header">
           <div>
-            <h2>三项功能不是孤立工具，而是一条持续增长闭环</h2>
-            <p>内容负责获得线索，对话负责推进决策，召回负责重新激活未成交客户。</p>
+            <span>
+              {moduleMeta[screen.module].label} / {screen.phase} / {screen.detail ? "详情" : screen.index}
+            </span>
+            <h1>{screen.title}</h1>
           </div>
-          <span>内容获客 → 私域转化 → 存量激活</span>
-        </div>
-        <div className="module-cards">
-          {modules.map((item) => (
-            <button
-              className={`module-card module-${item.key}`}
-              key={item.key}
-              onClick={() => {
-                changeModule(item.key);
-                document.querySelector("#prototype")?.scrollIntoView({ behavior: "smooth" });
-              }}
-            >
-              <span>{item.index}</span>
-              <Badge tone={item.key === "video" ? "blue" : item.key === "sales" ? "purple" : "green"}>
-                {item.label}
-              </Badge>
-              <h3>{item.title}</h3>
-              <p>{item.description}</p>
+          <div className="header-actions">
+            <button onClick={copyLink} type="button">复制此页链接</button>
+            <span className={`phase phase-${screen.phase}`}>{screen.phase}</span>
+            <i className="avatar">杜</i>
+            <b>杜老板</b>
+          </div>
+        </header>
+
+        <div className="content-layout">
+          <section className="workspace">
+            <div className="task-head">
               <div>
-                <b>{item.metric}</b>
-                <i>查看草图 →</i>
+                <h2>{screen.detail ? screen.title : taskTitle(screen.id, screen.title)}</h2>
+                <p>{screen.summary}</p>
               </div>
-            </button>
-          ))}
+              {!screen.detail && nextScreen && (
+                <button className="primary-action" onClick={() => goTo(nextScreen.id)} type="button">
+                  下一步：{nextScreen.title}
+                </button>
+              )}
+            </div>
+            <div className="workspace-scroll">
+              <ScreenContent screen={screen} goTo={goTo} notify={notify} />
+            </div>
+          </section>
+
+          <aside className="help-column">
+            <section className="help-card goal-card">
+              <h3>本页目标：{goalTitle(screen.id, screen.title)}</h3>
+              <p>{screen.summary}</p>
+              <div>
+                <span>预计 {screen.duration}</span>
+                <span>产出：{screen.output}</span>
+                <span>{screen.phase} {screen.detail ? "" : `${screen.index}/${moduleScreens.length}`}</span>
+              </div>
+            </section>
+            <section className="help-card">
+              <h3>操作说明</h3>
+              <ol>
+                {screen.instructions.map((item) => <li key={item}>{item}</li>)}
+              </ol>
+            </section>
+            <section className="help-card">
+              <h3>{screen.detail ? "关联内容" : "演示视频"}</h3>
+              <button
+                className="demo-video"
+                onClick={() => notify(screen.detail ? "关联业务资料已展开" : "演示视频将在正式产品中播放")}
+                type="button"
+              >
+                {screen.detail ? "客户画像｜业务数据｜操作记录" : "▶　02:18　查看完整操作"}
+              </button>
+            </section>
+            <section className="help-card done-card">
+              <h3>完成标准</h3>
+              <ul>
+                {screen.done.map((item) => <li key={item}>✓ {item}</li>)}
+              </ul>
+              {screen.detail ? (
+                <button onClick={() => goTo(screen.parent ?? moduleScreens[0].id)} type="button">
+                  返回{moduleScreens.find((item) => item.id === screen.parent)?.title ?? "主列表"}
+                </button>
+              ) : nextScreen ? (
+                <button onClick={() => goTo(nextScreen.id)} type="button">
+                  下一步：{nextScreen.title}
+                </button>
+              ) : (
+                <button onClick={() => goTo(moduleScreens[0].id)} type="button">
+                  返回本模块第一页
+                </button>
+              )}
+            </section>
+          </aside>
         </div>
       </section>
-
-      <section className="prototype-section" id="prototype">
-        <div className="prototype-intro">
-          <div>
-            <div className="eyebrow">INTERACTIVE WIREFRAMES</div>
-            <h2>点击模块和场景，浏览 9 张关键界面</h2>
-          </div>
-          <p>桌面端按照 1440px 后台工作台设计；手机端会缩放为评审浏览模式。</p>
-        </div>
-        <div className="module-tabs" role="tablist" aria-label="功能模块">
-          {modules.map((item) => (
-            <button
-              aria-selected={activeModule === item.key}
-              className={activeModule === item.key ? "active" : ""}
-              key={item.key}
-              onClick={() => changeModule(item.key)}
-              role="tab"
-            >
-              <i>{item.index}</i>
-              <span>
-                <b>{item.label}</b>
-                <small>{item.title}</small>
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="stage-tabs" role="tablist" aria-label={`${module.label}场景`}>
-          {module.stages.map((stage, index) => (
-            <button
-              aria-selected={stageByModule[module.key] === stage.key}
-              className={stageByModule[module.key] === stage.key ? "active" : ""}
-              key={stage.key}
-              onClick={() =>
-                setStageByModule((current) => ({ ...current, [module.key]: stage.key }))
-              }
-              role="tab"
-            >
-              <i>0{index + 1}</i>
-              {stage.label}
-              <small>{stage.kicker}</small>
-            </button>
-          ))}
-        </div>
-        <ProductScreen
-          module={module}
-          selectedPlugin={selectedPlugin}
-          selectedVideo={selectedVideo}
-          setSelectedPlugin={setSelectedPlugin}
-          setSelectedVideo={setSelectedVideo}
-          stageKey={stageByModule[module.key]}
-        />
-      </section>
-
-      <section className="discussion" id="discussion">
-        <div className="discussion-copy">
-          <div className="eyebrow">BRAINSTORMING GUIDE</div>
-          <h2>建议团队先讨论流程，再讨论视觉</h2>
-          <p>
-            本轮目标不是确认按钮颜色，而是找出用户是否理解任务、是否愿意提供数据、哪些动作必须人工确认，以及系统怎样证明结果可信。
-          </p>
-        </div>
-        <div className="discussion-grid">
-          {[
-            ["01", "用户价值", "每条链路最早在哪一步让客户感受到价值？能否再提前？"],
-            ["02", "数据与信任", "系统调用、生成和评分的依据，哪些必须展示给运营人员？"],
-            ["03", "人工边界", "报价、发送、停止召回等高风险动作，人工确认点放在哪里？"],
-            ["04", "每日习惯", "如何把三个模块压缩成运营人员每天 30 分钟内可完成的任务？"],
-          ].map(([number, title, text]) => (
-            <article key={number}>
-              <i>{number}</i>
-              <h3>{title}</h3>
-              <p>{text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <footer>
-        <div>
-          <b>AI 营销增长工作台</b>
-          <span>装修行业产品草图 · 仅用于内部讨论</span>
-        </div>
-        <button className="button button-secondary" onClick={copyLink}>
-          {copied ? "链接已复制" : "复制页面链接"}
-        </button>
-      </footer>
+      {toast && <div className="toast" role="status">{toast}</div>}
     </main>
   );
+}
+
+function taskTitle(id: string, fallback: string) {
+  const titles: Record<string, string> = {
+    "video-business": "设置主营品类与服务区域",
+    "video-label": "标注首批 10 条匹配视频",
+    "video-slices": "上传并管理门店真实装修素材",
+    "video-spokesperson": "建立可复用的门店代言人素材",
+    "video-top": "浏览并选择今日竞品爆款",
+    "video-report": "阅读爆款自然量结构拆解报告",
+    "video-progress": "查看视频生成流水线与实时日志",
+    "video-result": "验收今日成片并完成质量检查",
+    "sales-training": "建立机器人可信销售知识库",
+    "sales-champion": "提交并拆解 10 段销冠真实对话",
+    "sales-simulation": "完成 100 组模拟演练标注",
+    "sales-prompt": "编辑机器人整体风格与承诺边界",
+    "sales-metrics": "查看从加企微到实际到店的数据",
+    "sales-quality": "逐个质检机器人真实对话",
+    "sales-faq": "优先优化提问最频繁的问题",
+    "sales-plugins": "选择并管理自动对话插件",
+    "sales-plugin-config": "配置插件触发条件与人工兜底",
+    "recall-activities": "维护可安全调用的活动与海报",
+    "recall-metrics": "分析过去召回效果与七次触达表现",
+    "recall-pool": "管理正在召回的客户",
+    "recall-cadence": "设计并审核七次个性化触达计划",
+    "recall-plugins": "管理知识海报与免费量房券插件",
+    "recall-poster": "配置客户阶段驱动的知识海报",
+    "recall-coupon": "配置可核销的免费上门测量券",
+    "recall-review": "审核待发送内容与停止规则",
+  };
+  return titles[id] ?? fallback;
+}
+
+function goalTitle(id: string, fallback: string) {
+  const goals: Record<string, string> = {
+    "video-business": "建立准确的业务画像",
+    "video-label": "让系统理解什么内容真正匹配业务",
+    "video-slices": "把真实视频整理成可复用片段",
+    "video-spokesperson": "形成稳定可用的代言人素材",
+    "video-top": "选出当天最值得参考的视频",
+    "video-report": "理解爆款结构，而不是复制内容",
+    "video-progress": "清楚看到视频正在完成到哪一步",
+    "video-result": "得到可以直接发布的合格成片",
+    "sales-training": "让机器人的回答都有可信依据",
+    "sales-champion": "学习优秀销售推进客户到店的方法",
+    "sales-simulation": "把人工判断变成机器人规则",
+    "sales-prompt": "明确机器人怎么说、什么不能说",
+    "sales-metrics": "掌握从加企微到到店的整体效率",
+    "sales-quality": "判断机器人在真实聊天中的表现",
+    "sales-faq": "先修正客户问得最多的问题",
+    "sales-plugins": "用自动能力完成报价、量房与信息收集",
+    "sales-plugin-config": "让插件在可信边界内自动运行",
+    "recall-activities": "保证召回调用的是有效活动",
+    "recall-metrics": "知道什么内容和节奏最有效",
+    "recall-pool": "找到最值得人工关注的召回客户",
+    "recall-cadence": "用七次触达逐步恢复客户信任",
+    "recall-plugins": "为不同阶段匹配合适的召回工具",
+    "recall-poster": "先提供有用知识，再推动客户行动",
+    "recall-coupon": "安全地把高意向客户推进到量房",
+    "recall-review": "阻止错误承诺与过度打扰",
+  };
+  return goals[id] ?? fallback;
 }
