@@ -21,12 +21,87 @@ const phaseLabels: Record<string, string> = {
 
 type DetailContext = Record<string, string>;
 
+type PageDemo = {
+  src: string;
+  title: string;
+  duration: string;
+};
+
+const pageDemos: Partial<Record<string, PageDemo>> = {
+  "video-slices": {
+    src: "./demos/video-slices.mp4",
+    title: "演示：只在本页上传实拍并检查拆分状态",
+    duration: "12 秒",
+  },
+  "video-spokesperson": {
+    src: "./demos/video-spokesperson.mp4",
+    title: "演示：只在本页准备照片和 3 段出镜视频",
+    duration: "12 秒",
+  },
+  "video-result": {
+    src: "./demos/video-result.mp4",
+    title: "演示：只在本页看完、核对并下载推荐版",
+    duration: "12 秒",
+  },
+  "sales-training": {
+    src: "./demos/sales-training.mp4",
+    title: "演示：只在本页上传并核对门店资料",
+    duration: "12 秒",
+  },
+  "sales-simulation": {
+    src: "./demos/sales-simulation.mp4",
+    title: "演示：只在本页评分并改正低分回答",
+    duration: "12 秒",
+  },
+  "sales-prompt": {
+    src: "./demos/sales-prompt.mp4",
+    title: "演示：只在本页修改、试聊并应用说话规则",
+    duration: "12 秒",
+  },
+  "sales-quality": {
+    src: "./demos/sales-quality.mp4",
+    title: "演示：只在本页核对一段可疑聊天",
+    duration: "12 秒",
+  },
+  "sales-plugin-config": {
+    src: "./demos/sales-plugin-config.mp4",
+    title: "演示：只在本页配置、试运行并启用一项功能",
+    duration: "12 秒",
+  },
+  "recall-activities": {
+    src: "./demos/recall-activities.mp4",
+    title: "演示：只在本页新增活动并提交审核",
+    duration: "12 秒",
+  },
+  "recall-cadence": {
+    src: "./demos/recall-cadence.mp4",
+    title: "演示：只在本页检查一位客户的跟进节奏",
+    duration: "12 秒",
+  },
+  "recall-poster": {
+    src: "./demos/recall-poster.mp4",
+    title: "演示：只在本页设置知识海报规则",
+    duration: "12 秒",
+  },
+  "recall-coupon": {
+    src: "./demos/recall-coupon.mp4",
+    title: "演示：只在本页设置量房券规则",
+    duration: "12 秒",
+  },
+  "recall-review": {
+    src: "./demos/recall-review.mp4",
+    title: "演示：只在本页核对并决定一条待发消息",
+    duration: "12 秒",
+  },
+};
+
 export default function PrototypeHub() {
   const [activeId, setActiveId] = useState("video-business");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [screenContexts, setScreenContexts] = useState<Record<string, DetailContext>>({});
   const [toast, setToast] = useState("");
   const screen = allScreens.find((item) => item.id === activeId) ?? allScreens[0];
+  const pageDemo = pageDemos[screen.id];
 
   useEffect(() => {
     function syncPageFromAddress() {
@@ -76,7 +151,9 @@ export default function PrototypeHub() {
     }
     setDetailsOpen(Boolean(target.detail));
     window.history.pushState({ detailContext: resolvedContext }, "", `#${id}`);
-    document.querySelector(".workspace-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
   }
 
   function notify(message: string) {
@@ -253,14 +330,13 @@ export default function PrototypeHub() {
                 ))}
               </ol>
             </section>
-            <section className="help-card">
-              <h3>{screen.detail ? "本页包含什么" : "看一遍再操作"}</h3>
-              {screen.detail ? (
-                <p className="related-copy">{detailRelatedCopy(screen.id)}</p>
-              ) : (
-                <DemoVideo module={screen.module} />
-              )}
-            </section>
+            {pageDemo && (
+              <section className="help-card page-demo-card">
+                <h3>本页操作演示</h3>
+                <p>只演示当前功能区：从哪里点、按什么顺序、看到什么表示完成。</p>
+                <PageDemoVideo key={pageDemo.src} demo={pageDemo} />
+              </section>
+            )}
             <section className="help-card done-card">
               <h3>完成时应符合</h3>
               <ul>
@@ -275,23 +351,7 @@ export default function PrototypeHub() {
   );
 }
 
-function DemoVideo({ module }: { module: ModuleKey }) {
-  const videos: Record<ModuleKey, { src: string; title: string }> = {
-    video: {
-      src: "./demos/video-growth.mp4",
-      title: "演示：从判断参考视频到检查成片",
-    },
-    sales: {
-      src: "./demos/sales-assistant.mp4",
-      title: "演示：教机器人回答、试聊并交给真人",
-    },
-    recall: {
-      src: "./demos/customer-followup.mp4",
-      title: "演示：从客户名单到批准定时消息",
-    },
-  };
-  const demo = videos[module];
-
+function PageDemoVideo({ demo }: { demo: PageDemo }) {
   return (
     <div className="demo-player">
       <video controls playsInline preload="metadata" aria-label={demo.title}>
@@ -299,30 +359,9 @@ function DemoVideo({ module }: { module: ModuleKey }) {
         你的浏览器暂时不能播放这段演示，可继续阅读上方图文步骤。
       </video>
       <b>{demo.title}</b>
-      <span>有字幕、无声音；演示数据不会真实发送</span>
+      <span>约 {demo.duration}｜有字幕、无声音｜演示数据，不会真实发送</span>
     </div>
   );
-}
-
-function detailRelatedCopy(id: string) {
-  const copy: Record<string, string> = {
-    "video-label-detail": "完整视频｜你的判断｜修改记录",
-    "video-slice-detail": "原视频｜片段列表｜保留决定",
-    "video-spokesperson-detail": "拍摄素材｜授权信息｜检查结果",
-    "video-competitor-detail": "完整视频｜排名依据｜客户评论",
-    "video-log-detail": "制作步骤｜自动处理｜待办问题",
-    "video-result-detail": "版本记录｜检查证据｜下载记录",
-    "sales-training-detail": "原文件｜系统读出的内容｜有效期",
-    "sales-champion-detail": "完整聊天｜关键话语｜实际结果",
-    "sales-simulation-detail": "四项评分｜低分原因｜正确回答",
-    "sales-conversation-detail": "客户需求｜回答依据｜真人接手点",
-    "sales-faq-detail": "客户问法｜标准答案｜资料来源",
-    "recall-activity-detail": "活动规则｜可预约人数｜使用记录",
-    "recall-customer-detail": "最近沟通｜下一条消息｜负责销售",
-    "recall-cadence-detail": "消息内容｜发送时间｜停止条件",
-    "recall-review-detail": "客户情况｜核对依据｜审核结论",
-  };
-  return copy[id] ?? "示例内容｜核对依据｜操作记录";
 }
 
 function taskTitle(id: string, fallback: string) {
