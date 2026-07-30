@@ -1929,6 +1929,121 @@ a {
   display: block;
 }
 
+.recall-connect {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  min-height: 170px;
+  place-content: center;
+  text-align: center;
+}
+
+.recall-connect h3,
+.recall-connect p {
+  margin: 0;
+}
+
+.recall-connect p {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.7;
+  max-width: 430px;
+}
+
+.recall-live-grid {
+  align-items: start;
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.recall-user-row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.recall-user-row:hover,
+.recall-user-row.active {
+  background: var(--green-soft);
+}
+
+.recall-user-row small {
+  color: var(--muted);
+  display: block;
+  font-size: 6px;
+  margin-top: 2px;
+}
+
+.recall-customer-detail {
+  min-width: 0;
+}
+
+.recall-detail-columns {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.recall-detail-columns h4 {
+  font-size: 9px;
+  margin: 0 0 9px;
+}
+
+.recall-message-list,
+.recall-plan-list {
+  display: grid;
+  gap: 8px;
+}
+
+.recall-message-list article,
+.recall-plan-list article {
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.recall-message-list article > div,
+.recall-plan-list article > div {
+  display: grid;
+  gap: 2px;
+}
+
+.recall-message-list b,
+.recall-plan-list b {
+  font-size: 8px;
+}
+
+.recall-message-list span,
+.recall-plan-list span,
+.recall-draft-note {
+  color: var(--muted);
+  font-size: 6px;
+  line-height: 1.6;
+}
+
+.recall-message-list p,
+.recall-plan-list p {
+  font-size: 8px;
+  line-height: 1.65;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+}
+
+.recall-empty {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.recall-draft-note {
+  display: block;
+  margin-top: 9px;
+}
+
 .recall-plugin-grid {
   grid-template-columns: 0.72fr 0.82fr 1fr;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type ModuleKey = "video" | "sales" | "recall";
 
@@ -119,12 +119,46 @@ const chatRows = [
   ["陈先生", "初次咨询", "64", "风格选择", "待标注"],
 ];
 
-const recallRows = [
-  ["王女士", "方案对比", "第 2 次", "82", "1 天 1 条知识"],
-  ["刘先生", "预算确认", "第 4 次", "68", "3 天 1 张海报"],
-  ["赵女士", "等待量房", "第 1 次", "55", "发送体验券"],
-  ["周先生", "暂缓装修", "第 6 次", "41", "7 天温和提醒"],
-];
+type RecallRecord = {
+  date: string;
+  day: number;
+  status: string;
+  topic: string | null;
+  message: string;
+};
+
+type PlannedTouch = {
+  day: number;
+  topic: string;
+  draft: string;
+  scheduledAt: string | null;
+};
+
+type RecallRecipient = {
+  id: string;
+  name: string;
+  status: string;
+  stage: string;
+  successfulTouches: number;
+  remainingTouches: number;
+  nextRecallAt: string | null;
+  nextRecallInDays: number | null;
+  records: RecallRecord[];
+  plannedTouches: PlannedTouch[];
+};
+
+type RecallPortalData = {
+  generatedAt: string;
+  dueNow: number;
+  summary: {
+    queued: number;
+    sent: number;
+    replied: number;
+    replyRate: number | null;
+    progressed: number;
+  };
+  recipients: RecallRecipient[];
+};
 
 function Badge({
   children,
@@ -649,58 +683,189 @@ function RecallActivities() {
 }
 
 function RecallDashboard() {
+  const [data, setData] = useState<RecallPortalData | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "missing" | "error">(
+    "loading",
+  );
+  const [selectedId, setSelectedId] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const token = window.location.hash.slice(1).trim();
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) {
+      window.queueMicrotask(() => setLoadState("missing"));
+      return;
+    }
+    const controller = new AbortController();
+    fetch("https://wecom-chat.vercel.app/api/public/client-recall", {
+      cache: "no-store",
+      headers: { "X-Portal-Token": token },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const body = (await response.json()) as RecallPortalData & { error?: string };
+        if (!response.ok) throw new Error(body.error ?? "召回数据加载失败");
+        setData(body);
+        setSelectedId(body.recipients[0]?.id ?? "");
+        setLoadState("ready");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadState("error");
+      });
+    return () => controller.abort();
+  }, []);
+
+  const recipients = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    if (!data || !keyword) return data?.recipients ?? [];
+    return data.recipients.filter(
+      (item) =>
+        item.name.toLowerCase().includes(keyword) ||
+        item.id.toLowerCase().includes(keyword) ||
+        item.stage.toLowerCase().includes(keyword),
+    );
+  }, [data, search]);
+  const selected =
+    data?.recipients.find((item) => item.id === selectedId) ?? recipients[0] ?? null;
+
+  if (loadState === "missing") {
+    return (
+      <section className="panel recall-connect">
+        <Badge tone="amber">需要专属链接</Badge>
+        <h3>召回运营数据尚未连接</h3>
+        <p>请使用项目负责人提供的完整专属链接打开。令牌只保留在浏览器地址中，不会写进 GitHub Pages 日志。</p>
+      </section>
+    );
+  }
+
+  if (loadState === "loading") {
+    return <section className="panel recall-connect"><h3>正在读取召回运营数据…</h3></section>;
+  }
+
+  if (loadState === "error" || !data) {
+    return (
+      <section className="panel recall-connect">
+        <Badge tone="red">连接失败</Badge>
+        <h3>暂时无法读取召回数据</h3>
+        <p>请确认使用完整专属链接，稍后重新加载页面。</p>
+      </section>
+    );
+  }
+
   return (
     <div className="operations-stack">
       <div className="stat-grid">
-        <Stat label="召回中" value="68" change="+9 人" />
-        <Stat label="已回复" value="21" change="30.9%" />
-        <Stat label="预约量房" value="8" change="11.8%" />
-        <Stat label="停止触达" value="5" change="-2 人" />
+        <Stat label="进入召回" value={String(data.summary.queued)} change={`${data.recipients.length} 位客户`} />
+        <Stat label="成功发送" value={String(data.summary.sent)} change="当前统计范围" />
+        <Stat
+          label="召回后回复"
+          value={String(data.summary.replied)}
+          change={`${Math.round((data.summary.replyRate ?? 0) * 100)}%`}
+        />
+        <Stat label="当前待召回" value={String(data.dueNow)} change="已到可触达时间" />
       </div>
-      <div className="screen-grid recall-grid">
-        <section className="panel chart-panel">
-          <SectionHead title="7 次触达阶段分布" description="第 3 次后回复率最高" />
-          <div className="bar-chart" aria-label="7 次召回人数分布图">
-            {[18, 16, 12, 9, 6, 4, 3].map((value, index) => (
-              <div key={index}>
-                <span style={{ height: `${value * 5}px` }} />
-                <small>{index + 1}</small>
-              </div>
-            ))}
-          </div>
-          <div className="chart-caption">
-            <strong>30.9%</strong>
-            <span>近 14 天回复率 · +6.4%</span>
-          </div>
-        </section>
+      <div className="screen-grid recall-live-grid">
         <section className="panel user-pool">
           <SectionHead
             title="召回用户池"
-            description="信任分从高到低 · 最近触达优先"
-            action={<input aria-label="搜索客户" placeholder="搜索客户…" />}
+            description={`真实数据 · 更新于 ${new Date(data.generatedAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })}`}
+            action={
+              <input
+                aria-label="搜索客户"
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="搜索客户…"
+                value={search}
+              />
+            }
           />
           <div className="data-table recall-table">
             <div className="table-row table-head">
               <span>客户</span>
-              <span>装修阶段</span>
-              <span>联系阶段</span>
-              <span>信任分</span>
-              <span>召回策略</span>
+              <span>当前阶段</span>
+              <span>已完成</span>
+              <span>剩余</span>
+              <span>下次召回</span>
             </div>
-            {recallRows.map(([name, stage, contact, trust, strategy]) => (
-              <div className="table-row" key={name}>
+            {recipients.map((item) => (
+              <button
+                className={`table-row recall-user-row ${selected?.id === item.id ? "active" : ""}`}
+                key={item.id}
+                onClick={() => setSelectedId(item.id)}
+              >
                 <span>
-                  <b>{name}</b>
+                  <b>{item.name}</b>
+                  <small>{item.id}</small>
                 </span>
-                <span>{stage}</span>
+                <span>{item.stage}</span>
                 <span>
-                  <Badge>{contact}</Badge>
+                  <Badge tone="green">{item.successfulTouches} 次</Badge>
                 </span>
-                <strong>{trust}</strong>
-                <span>{strategy}</span>
-              </div>
+                <strong>{item.remainingTouches} 次</strong>
+                <span>
+                  {item.nextRecallAt
+                    ? item.nextRecallInDays === 0
+                      ? "今天"
+                      : `${item.nextRecallInDays} 天后`
+                    : "无后续计划"}
+                </span>
+              </button>
             ))}
           </div>
+        </section>
+        <section className="panel recall-customer-detail">
+          {selected ? (
+            <>
+              <SectionHead
+                title={selected.name}
+                description={`${selected.id} · ${selected.stage} · ${selected.status}`}
+                action={<Badge tone="green">剩余 {selected.remainingTouches} 次</Badge>}
+              />
+              <div className="recall-detail-columns">
+                <div>
+                  <h4>已发送记录</h4>
+                  <div className="recall-message-list">
+                    {selected.records.map((record, index) => (
+                      <article key={`${record.date}-${index}`}>
+                        <div>
+                          <b>第 {record.day} 次 · {record.topic ?? "未标注话题"}</b>
+                          <span>{new Date(record.date).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })} · {record.status}</span>
+                        </div>
+                        <p>{record.message || "未记录召回话术"}</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4>接下来几次话术草稿</h4>
+                  <div className="recall-plan-list">
+                    {selected.plannedTouches.length ? (
+                      selected.plannedTouches.map((plan) => (
+                        <article key={`${selected.id}-${plan.day}`}>
+                          <div>
+                            <b>第 {plan.day} 次 · {plan.topic}</b>
+                            <span>
+                              {plan.scheduledAt
+                                ? new Date(plan.scheduledAt).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" })
+                                : "待前一次执行后确定"}
+                            </span>
+                          </div>
+                          <p>{plan.draft}</p>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="recall-empty">当前没有后续召回计划。</p>
+                    )}
+                  </div>
+                  <small className="recall-draft-note">
+                    草稿供内部提前审核；最终发送前会结合客户最新回复与画像更新。
+                  </small>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="recall-empty">请选择一位客户查看召回记录。</p>
+          )}
         </section>
       </div>
     </div>
@@ -887,10 +1052,20 @@ export default function Home() {
   const [selectedPlugin, setSelectedPlugin] = useState(1);
   const [copied, setCopied] = useState(false);
 
-  const module = useMemo(
+  const selectedModule = useMemo(
     () => modules.find((item) => item.key === activeModule) ?? modules[0],
     [activeModule],
   );
+
+  useEffect(() => {
+    const token = window.location.hash.slice(1).trim();
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) return;
+    window.setTimeout(() => {
+      setActiveModule("recall");
+      setStageByModule((current) => ({ ...current, recall: "dashboard" }));
+      document.querySelector("#prototype")?.scrollIntoView({ behavior: "smooth" });
+    }, 0);
+  }, []);
 
   function changeModule(key: ModuleKey) {
     setActiveModule(key);
@@ -1033,14 +1208,17 @@ export default function Home() {
             </button>
           ))}
         </div>
-        <div className="stage-tabs" role="tablist" aria-label={`${module.label}场景`}>
-          {module.stages.map((stage, index) => (
+        <div className="stage-tabs" role="tablist" aria-label={`${selectedModule.label}场景`}>
+          {selectedModule.stages.map((stage, index) => (
             <button
-              aria-selected={stageByModule[module.key] === stage.key}
-              className={stageByModule[module.key] === stage.key ? "active" : ""}
+              aria-selected={stageByModule[selectedModule.key] === stage.key}
+              className={stageByModule[selectedModule.key] === stage.key ? "active" : ""}
               key={stage.key}
               onClick={() =>
-                setStageByModule((current) => ({ ...current, [module.key]: stage.key }))
+                setStageByModule((current) => ({
+                  ...current,
+                  [selectedModule.key]: stage.key,
+                }))
               }
               role="tab"
             >
@@ -1051,12 +1229,12 @@ export default function Home() {
           ))}
         </div>
         <ProductScreen
-          module={module}
+          module={selectedModule}
           selectedPlugin={selectedPlugin}
           selectedVideo={selectedVideo}
           setSelectedPlugin={setSelectedPlugin}
           setSelectedVideo={setSelectedVideo}
-          stageKey={stageByModule[module.key]}
+          stageKey={stageByModule[selectedModule.key]}
         />
       </section>
 
