@@ -1186,13 +1186,10 @@ function ProgressScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) 
 }
 
 function ResultScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
-  const manualChecks = ["人物和声音自然", "产品与材料说明正确", "价格和活动条件正确", "服务地区与联系方式正确", "画面没有客户隐私"];
   const [watched, setWatched] = useState(false);
-  const [confirmed, setConfirmed] = useState<boolean[]>(manualChecks.map(() => false));
-  const readyToDownload = watched && confirmed.every(Boolean);
   return (
     <div className="result-layout">
-      <Card title="今天的成片（演示）" caption="42 秒 · 必须播放到结尾，再完成右侧人工确认" className="result-player">
+      <Card title="今天的成片（演示）" caption="42 秒 · 看完后可下载推荐版" className="result-player">
         <video controls onEnded={() => { setWatched(true); notify("已记录：店长把成片从头播放到结尾"); }} playsInline poster="./video-previews/finished-kitchen.jpg" preload="metadata">
           <source src="./demos/finished-kitchen-video.mp4" type="video/mp4" />
           当前浏览器无法播放，可下载后查看。
@@ -1200,7 +1197,7 @@ function ResultScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
         <div className="version-tabs"><button className="active">第 3 版（建议发布）</button><button>大字幕版</button><button>第 1 版（只用于对比）</button></div>
         <Pill tone={watched ? "positive" : "warning"}>{watched ? "已播放到结尾" : "还没有播放到结尾"}</Pill>
       </Card>
-      <Card title="系统自动检查" caption="绿色检查不能代替店长人工看完" className="qa-list">
+      <Card title="系统自动检查" caption="自动检查结果仅供下载前参考" className="qa-list">
         {[
           ["画面清晰", "97 / 100", "positive"],
           ["字幕没有被平台按钮挡住", "通过", "positive"],
@@ -1211,15 +1208,7 @@ function ResultScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
           ["平台敏感词", "未发现", "positive"],
           ["视频从头到尾完整", "通过", "positive"],
         ].map(([label, value, tone]) => <div className="qa-item" key={label}><span>{label}</span><Pill tone={tone as "positive"}>{value}</Pill></div>)}
-        <div className="manual-check-note"><b>店长还要亲自确认</b><span>全部打勾且视频播放到结尾后，下载按钮才会出现。</span></div>
-        <div className="manual-check-list">
-          {manualChecks.map((item, index) => <label key={item}><input checked={confirmed[index]} onChange={() => setConfirmed((current) => current.map((value, itemIndex) => itemIndex === index ? !value : value))} type="checkbox" />{item}</label>)}
-        </div>
-        {readyToDownload ? (
-          <a className="ui-button ui-button-primary" download="今日成片-第3版.mp4" href="./demos/finished-kitchen-video.mp4" onClick={() => notify("正在下载演示成片：今日成片-第3版.mp4")}>人工检查完成，下载第 3 版</a>
-        ) : (
-          <Button disabled kind="primary">先看完视频并完成 5 项人工确认</Button>
-        )}
+        <a className="ui-button ui-button-primary" download="今日成片-第3版.mp4" href="./demos/finished-kitchen-video.mp4" onClick={() => notify("正在下载演示成片：今日成片-第3版.mp4")}>下载第 3 版</a>
         <Button onClick={() => goTo("video-result-detail", { version: "推荐版" })}>查看版本、检查证据和下载记录</Button>
       </Card>
       <Card title="发布建议" caption="依据本账号近 30 天粉丝在线时间">
