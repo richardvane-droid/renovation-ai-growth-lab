@@ -32,11 +32,11 @@ test("server-renders the paid account entrance", async () => {
 
   assert.match(
     html,
-    /<title>门店营销助手｜全屋定制店长操作演示<\/title>/,
+    /<title>AKKE｜门店营销助手｜V4\.1 交互原型<\/title>/,
   );
   assert.match(
     html,
-    /<meta name="description" content="给全屋定制店长的操作演示，包含短视频获客、企微自动接待和沉默客户跟进。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
+    /<meta name="description" content="AKKE 全屋定制门店营销助手的操作演示，包含短视频获客、企微自动接待和沉默客户跟进。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
   );
 
   assert.match(html, /门店营销助手/);

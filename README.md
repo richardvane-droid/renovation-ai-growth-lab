@@ -1,98 +1,68 @@
-# vinext-starter
+# AKKE｜门店营销助手｜交互原型
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+AKKE 面向全屋定制门店的营销助手产品设计原型，用于需求评审、交互验证和团队头脑风暴，不是正式生产系统。
 
-## Prerequisites
+## 当前版本
 
-- Node.js `>=22.13.0`
+- 版本：V4.1
+- 状态：评审中
+- 更新日期：2026-07-31
+- 页面范围：22 个功能页面、14 个详情页
+- 公开原型：https://akke-ai.github.io/akke-ai-growth-workbench-prototype/
+- Figma 设计源：https://www.figma.com/design/jLPp0OoGgRJojuO8wDPbmC/AI%E8%90%A5%E9%94%80%E5%A2%9E%E9%95%BF%E5%B7%A5%E4%BD%9C%E5%8F%B0%EF%BD%9C%E4%B8%89%E5%A4%A7%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD-v2
 
-## Quick Start
+## 产品范围
+
+### 01 视频增长
+
+覆盖业务细分选择、匹配视频标注、真实素材切片、门店代言人素材、竞品爆款视频、爆款结构拆解、制作进展和成片质检。
+
+### 02 企微销售
+
+覆盖销售培训资料、销冠对话样本、模拟演练标注、机器人风格规则、聊天数据、真实对话质检、高频问题优化和对话插件配置。
+
+### 03 断联召回
+
+覆盖活动与海报管理、召回指标、客户沟通历史与七次跟进计划、知识海报和上门测量券。
+
+## 案例与数据说明
+
+原型优先使用 AKKE 专题和装修行业案例进行模拟填充，包括“有大有小｜漳州全屋定制”等案例。无法取得真实数据的部分，按照业务方向编写了用于评审的模拟内容，不代表正式经营数据。
+
+## 更新规范
+
+1. Figma 为设计源文件，先完成设计确认。
+2. 每次评审更新使用独立版本号，例如 `V4.1`。
+3. 网页实现与 Figma 页面结构、文案和交互保持同步。
+4. 合并至 `main` 后更新 GitHub Pages。
+5. 重要版本创建 `vX.Y-prototype` 标签并在此记录变更。
+
+## 本地运行
 
 ```bash
 npm install
 npm run dev
+```
+
+生产构建：
+
+```bash
 npm run build
+npm run build:static
 ```
 
-This starter does not use `wrangler.jsonc`.
+## V4 更新记录
 
-## Included Shape
+- 将每个操作模块拆分为独立页面。
+- 补充所有列表项对应的详情页。
+- 增加真实案例感的数据与内容填充。
+- 完成视频增长、企微销售和断联召回三条完整链路。
+- 统一 AKKE 项目归属、版本标识和公开评审地址。
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+## V4.1 更新记录
 
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+- 增加注册、登录和一次性 1000 元演示付费流程。
+- 将每日工作放在导航首位，首次设置收起为低频入口。
+- 合并重复页面，并把知识海报、量房券作为自动跟进工具的子页面。
+- 将客户历史、七次跟进计划和消息编辑合并在同一条客户链路中。
+- 重做自动服务、知识海报和量房券的本页操作演示视频。
