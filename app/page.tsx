@@ -52,11 +52,6 @@ const pageDemos: Partial<Record<string, PageDemo>> = {
     title: "评分并改正低分回答",
     duration: "12 秒",
   },
-  "sales-prompt": {
-    src: "./demos/sales-prompt.mp4",
-    title: "修改、试聊并应用说话规则",
-    duration: "12 秒",
-  },
   "sales-quality": {
     src: "./demos/sales-quality.mp4",
     title: "核对一段可疑聊天",

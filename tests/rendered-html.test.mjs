@@ -67,7 +67,6 @@ test("ships only page-specific operation demos", async () => {
     "recall-poster.mp4",
     "recall-review.mp4",
     "sales-plugin-config.mp4",
-    "sales-prompt.mp4",
     "sales-quality.mp4",
     "sales-simulation.mp4",
     "sales-training.mp4",
@@ -153,4 +152,23 @@ test("marks each sales reply as borrowable by default and keeps reviews per conv
 
   assert.match(dataSource, /销售回复默认可借鉴；不妥的句子改为“不建议借鉴”/);
   assert.match(dataSource, /逐句确认这段销售聊天/);
+});
+
+test("lets step 02-04 edit rules and submit directly", async () => {
+  const [pageSource, screenSource, dataSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(screenSource, /直接修改机器人说话规则/);
+  assert.match(screenSource, /提交并应用/);
+  assert.match(screenSource, /setAppliedText\(text\)/);
+  assert.doesNotMatch(screenSource, /加一条规则/);
+  assert.doesNotMatch(screenSource, /先用 3 段对话试一试/);
+  assert.doesNotMatch(screenSource, /3 段示例试聊已通过/);
+
+  assert.match(dataSource, /修改完成后点“提交并应用”/);
+  assert.doesNotMatch(dataSource, /先用 3 段示例对话试聊/);
+  assert.doesNotMatch(pageSource, /demos\/sales-prompt\.mp4/);
 });

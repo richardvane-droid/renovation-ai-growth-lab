@@ -171,35 +171,6 @@ const pageDemos = [
     ],
   },
   {
-    id: "sales-prompt",
-    accent: "#2563eb",
-    title: "修改、试聊并应用说话规则",
-    steps: [
-      {
-        action: ["先改左侧说话规则", "把不能承诺的内容写清楚"],
-        result: "修改后先保持“未应用”状态。",
-        focus: [0.3, 0.48],
-      },
-      {
-        action: ["需要时点“加一条规则”", "一句只写一个明确要求"],
-        result: "规则越具体，店长越容易检查。",
-        focus: [0.18, 0.83],
-      },
-      {
-        action: ["点“先用 3 段对话试一试”", "逐段看是否按规则回答"],
-        result: "3 段都通过，才允许正式应用。",
-        focus: [0.48, 0.83],
-        source: "lower",
-      },
-      {
-        action: ["确认右侧检查项都通过", "再点“应用到新客户”"],
-        result: "看到“已应用”，本页操作才完成。",
-        focus: [0.23, 0.89],
-        source: "lower",
-      },
-    ],
-  },
-  {
     id: "sales-quality",
     accent: "#2563eb",
     title: "核对一段可能答错的聊天",
@@ -406,6 +377,7 @@ const obsoleteModuleVideos = [
   "video-growth.mp4",
   "sales-assistant.mp4",
   "customer-followup.mp4",
+  "sales-prompt.mp4",
 ];
 
 function escapeXml(value) {

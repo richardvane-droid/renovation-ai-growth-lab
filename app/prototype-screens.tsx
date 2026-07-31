@@ -1340,9 +1340,7 @@ function SimulationScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">
 }
 
 function PromptScreen({ notify }: Pick<ScreenProps, "notify">) {
-  const [version, setVersion] = useState("修改中，还未应用");
-  const [tested, setTested] = useState(false);
-  const [text, setText] = useState(`角色：你是“有大有小｜漳州全屋定制”的专业销售顾问。
+  const initialText = `角色：你是“有大有小｜漳州全屋定制”的专业销售顾问。
 
 目标：自然地帮助客户说清需求，再邀请合适的客户到店。
 
@@ -1351,23 +1349,34 @@ function PromptScreen({ notify }: Pick<ScreenProps, "notify">) {
 2. 价格、活动名额和门店地址只有在已确认资料里找到时才能说。
 3. 报价按“基础 / 品质 / 高配”三档解释，不能编造折扣。
 4. 客户明确拒绝、投诉或提出复杂施工问题时，立即交给真人销售。
-5. 表达专业、简洁、不压迫；每次只问一个关键问题。`);
-  const canTest = text.trim().length >= 40;
+5. 表达专业、简洁、不压迫；每次只问一个关键问题。`;
+  const [appliedText, setAppliedText] = useState(initialText);
+  const [text, setText] = useState(initialText);
+  const hasEnoughContent = text.trim().length >= 40;
+  const hasChanges = text !== appliedText;
+  const canSubmit = hasEnoughContent && hasChanges;
   return (
     <div className="prompt-layout">
-      <Card title="机器人说话方式和不能做的事" caption="系统已根据门店资料、优秀聊天和练习整理；店长只需检查和修改" className="prompt-editor">
-        <div className="prompt-toolbar"><Pill tone={tested ? "positive" : "info"}>{version}</Pill><span>当前使用：上一版 · 今天 09:15</span></div>
-        <textarea value={text} onChange={(event) => { setText(event.target.value); setTested(false); setVersion("有修改，还未试聊"); }} aria-label="机器人说话规则" />
+      <Card title="直接修改机器人说话规则" caption="在输入框里改好后，直接提交；不需要先加规则或试聊" className="prompt-editor">
+        <div className="prompt-toolbar"><Pill tone={hasChanges ? "warning" : "positive"}>{hasChanges ? "有修改，尚未提交" : "当前规则已应用"}</Pill><span>只影响提交后的新客户回复</span></div>
+        <textarea value={text} onChange={(event) => setText(event.target.value)} aria-label="机器人说话规则" />
         <div className="button-row">
-          <Button onClick={() => { setText((value) => `${value}\n6. 对客户敏感信息只用于本次服务。`); setTested(false); setVersion("有修改，还未试聊"); }}>＋ 加一条规则</Button>
-          <Button disabled={!canTest} onClick={() => { setTested(true); setVersion("3 段示例试聊已通过"); notify("试聊完成：没有乱报价格、名额或服务区域"); }}>{canTest ? "先用 3 段对话试一试" : "先写至少 40 个字的规则"}</Button>
-          <Button disabled={!tested} kind="primary" onClick={() => { setVersion("已应用到新的客户会话"); notify("新规则已应用；只影响之后的新回复，可随时恢复上一版"); }}>确认无误，应用到新会话</Button>
+          <Button
+            disabled={!canSubmit}
+            kind="primary"
+            onClick={() => {
+              setAppliedText(text);
+              notify("规则已提交；将用于之后的新客户回复");
+            }}
+          >
+            {!hasEnoughContent ? "规则至少保留 40 个字" : hasChanges ? "提交并应用" : "当前规则已提交"}
+          </Button>
         </div>
-        {!canTest && <p className="form-hint">规则不能为空。至少写清“能做什么、不能承诺什么、什么时候交给真人”，再开始试聊。</p>}
+        {!hasEnoughContent && <p className="form-hint">规则不能为空。至少写清“能做什么、不能承诺什么、什么时候交给真人”。</p>}
       </Card>
-      <Card title="应用前自动检查" caption="出现黄色建议时先确认，不会直接影响真实客户" className="rule-checks">
-        {["价格只使用最新价格表", "活动名额只使用门店接待表", "不会强迫客户到店", "交给真人销售的条件完整", "没有多收集客户隐私"].map((item) => <div key={item}><span>{canTest ? "✓" : "—"}</span>{item}</div>)}
-        <div className="rule-warning"><b>{canTest ? "1 条建议" : "规则内容不足"}</b><p>{canTest ? "可增加“客户只想了解风格时，不立即追问预算”的柔性规则。" : "当前没有足够内容可检查，也不会允许试聊或应用。"}</p></div>
+      <Card title="自动检查" caption="边修改边检查；内容不足时才会阻止提交" className="rule-checks">
+        {["价格只使用最新价格表", "活动名额只使用门店接待表", "不会强迫客户到店", "交给真人销售的条件完整", "没有多收集客户隐私"].map((item) => <div key={item}><span>{hasEnoughContent ? "✓" : "—"}</span>{item}</div>)}
+        <div className="rule-warning"><b>{hasEnoughContent ? "1 条提醒" : "规则内容不足"}</b><p>{hasEnoughContent ? "客户只想了解风格时，不要立即追问预算。" : "当前内容不足，不能提交。"}</p></div>
       </Card>
     </div>
   );
