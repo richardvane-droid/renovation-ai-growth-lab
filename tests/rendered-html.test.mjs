@@ -172,3 +172,39 @@ test("lets step 02-04 edit rules and submit directly", async () => {
   assert.doesNotMatch(dataSource, /先用 3 段示例对话试聊/);
   assert.doesNotMatch(pageSource, /demos\/sales-prompt\.mp4/);
 });
+
+test("puts daily work first and folds low-frequency setup out of the way", async () => {
+  const [pageSource, dataSource, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(pageSource, /useState\("video-top"\)/);
+  assert.match(pageSource, /item\.module === key && item\.cadence === "daily"/);
+  assert.match(pageSource, />今天要做<\/b>/);
+  assert.match(pageSource, /每天从这里开始/);
+  assert.match(pageSource, /<details className="setup-nav"/);
+  assert.match(pageSource, />设置与工具<\/b>/);
+  assert.match(pageSource, /首次使用或资料变化时再打开/);
+  assert.match(pageSource, /<optgroup label="今天要做">/);
+  assert.match(pageSource, /<optgroup label="设置与工具（低频）">/);
+  assert.doesNotMatch(pageSource, /第 \$\{screen\.index\} 步/);
+
+  assert.match(dataSource, /caption: "做今天的视频"/);
+  assert.match(dataSource, /caption: "看今天的接待"/);
+  assert.match(dataSource, /caption: "处理今天的跟进"/);
+  assert.doesNotMatch(dataSource, /caption: "[89] 步"/);
+  assert.match(
+    dataSource,
+    /id: "recall-activities"[\s\S]*?cadence: "setup"/,
+  );
+  assert.match(
+    dataSource,
+    /id: "recall-review"[\s\S]*?cadence: "daily"/,
+  );
+
+  assert.match(css, /\.task-nav-groups\s*\{/);
+  assert.match(css, /\.setup-nav\s*\{[\s\S]*?border-top:/);
+  assert.match(css, /\.setup-nav \.screen-nav button\s*\{[\s\S]*?color: var\(--muted\)/);
+});

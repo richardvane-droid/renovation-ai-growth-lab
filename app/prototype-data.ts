@@ -1,4 +1,5 @@
 export type ModuleKey = "video" | "sales" | "recall";
+export type ScreenCadence = "setup" | "daily";
 
 export type Screen = {
   id: string;
@@ -6,6 +7,7 @@ export type Screen = {
   index: string;
   title: string;
   phase: string;
+  cadence?: ScreenCadence;
   summary: string;
   output: string;
   duration: string;
@@ -19,9 +21,9 @@ export const moduleMeta: Record<
   ModuleKey,
   { index: string; label: string; caption: string }
 > = {
-  video: { index: "01", label: "短视频获客", caption: "8 步" },
-  sales: { index: "02", label: "企微自动接待", caption: "9 步" },
-  recall: { index: "03", label: "沉默客户跟进", caption: "8 步" },
+  video: { index: "01", label: "短视频获客", caption: "做今天的视频" },
+  sales: { index: "02", label: "企微自动接待", caption: "看今天的接待" },
+  recall: { index: "03", label: "沉默客户跟进", caption: "处理今天的跟进" },
 };
 
 export const mainScreens: Screen[] = [
@@ -31,6 +33,7 @@ export const mainScreens: Screen[] = [
     index: "01",
     title: "先选门店做什么生意",
     phase: "引导流程",
+    cadence: "setup",
     summary: "告诉系统门店真正能做哪些品类、能服务哪些城市。以后推荐的视频和客户内容都会按这里筛选。",
     output: "门店业务范围",
     duration: "3 分钟",
@@ -48,6 +51,7 @@ export const mainScreens: Screen[] = [
     index: "02",
     title: "告诉系统哪些视频适合本店",
     phase: "引导流程",
+    cadence: "setup",
     summary: "看完 10 条示例视频，判断“本店适合拍”还是“不适合”。系统会照着你的选择继续找素材。",
     output: "本店的视频偏好",
     duration: "8 分钟",
@@ -65,6 +69,7 @@ export const mainScreens: Screen[] = [
     index: "03",
     title: "上传门店真实视频",
     phase: "引导流程",
+    cadence: "setup",
     summary: "把完工、安装和展厅实拍上传进来。系统会自动拆成可重复使用的小片段，并写出每段拍了什么。",
     output: "可复用的门店视频片段",
     duration: "5–15 分钟",
@@ -82,6 +87,7 @@ export const mainScreens: Screen[] = [
     index: "04",
     title: "准备店长出镜素材",
     phase: "引导流程",
+    cadence: "setup",
     summary: "按示范拍 1 张正面照和 3 段短视频。系统以后才能用同一个店长形象制作口播。",
     output: "可用于制作视频的店长素材",
     duration: "15 分钟",
@@ -99,6 +105,7 @@ export const mainScreens: Screen[] = [
     index: "05",
     title: "选今天要参考的视频",
     phase: "每日任务",
+    cadence: "daily",
     summary: "从最近 3 天表现较好的同行视频里选 1 条，只参考它的讲法和节奏，不照搬内容。",
     output: "今天的参考视频",
     duration: "10 分钟",
@@ -116,6 +123,7 @@ export const mainScreens: Screen[] = [
     index: "06",
     title: "看懂参考视频为什么有效",
     phase: "每日任务",
+    cadence: "daily",
     summary: "系统会把视频分成“开头吸引人—说明问题—展示方案—给出证据—邀请行动”几段，告诉你哪些做法可以借鉴。",
     output: "可借鉴的视频拍法",
     duration: "2–5 分钟",
@@ -133,6 +141,7 @@ export const mainScreens: Screen[] = [
     index: "07",
     title: "等系统制作今天的视频",
     phase: "每日任务",
+    cadence: "daily",
     summary: "这里会显示脚本、画面、口播、剪辑和检查分别做到哪一步。出现红色失败时，再按提示处理。",
     output: "今天的视频制作进度",
     duration: "3–8 分钟",
@@ -150,6 +159,7 @@ export const mainScreens: Screen[] = [
     index: "08",
     title: "检查并下载今天的成片",
     phase: "每日任务",
+    cadence: "daily",
     summary: "从头播放一遍，重点核对字幕、口播、门店名称、价格和画面。确认无误后再下载发布。",
     output: "可以发布的视频文件",
     duration: "5 分钟",
@@ -168,6 +178,7 @@ export const mainScreens: Screen[] = [
     index: "01",
     title: "上传机器人回答客户时可用的门店资料",
     phase: "引导流程",
+    cadence: "setup",
     summary: "上传门店确认过的价格、活动、服务区域和售后资料。机器人只使用标为“可用”的内容；不确定时会交给真人销售。",
     output: "机器人回答客户时可用的门店资料",
     duration: "10 分钟",
@@ -185,6 +196,7 @@ export const mainScreens: Screen[] = [
     index: "02",
     title: "上传并检查 10 段销售聊天",
     phase: "引导流程",
+    cadence: "setup",
     summary: "放入沟通效果好的聊天，确认隐私和客户结果，再把不得体的销售回复标为“不建议借鉴”。",
     output: "逐句核对过的销售沟通示例",
     duration: "15 分钟",
@@ -202,6 +214,7 @@ export const mainScreens: Screen[] = [
     index: "03",
     title: "像带新人一样给机器人回答打分",
     phase: "引导流程",
+    cadence: "setup",
     summary: "看客户问题和机器人回答，分别判断它有没有听懂、有没有答对、有没有乱承诺、有没有自然推进下一步。",
     output: "100 组回答判断",
     duration: "30–60 分钟",
@@ -219,6 +232,7 @@ export const mainScreens: Screen[] = [
     index: "04",
     title: "确认机器人怎么说、哪些话不能说",
     phase: "引导流程",
+    cadence: "setup",
     summary: "用门店语言确认说话口吻、必须问清的信息、可以承诺的内容，以及哪些情况必须交给真人销售。",
     output: "机器人说话规则",
     duration: "10 分钟",
@@ -236,6 +250,7 @@ export const mainScreens: Screen[] = [
     index: "05",
     title: "看今天企微接待效果",
     phase: "每日运营",
+    cadence: "daily",
     summary: "按“新增企微—有效对话—明确需求—预约到店—实际到店”看今天效果，并进入下一步检查可能答错的聊天。",
     output: "今天的接待结果和待检查聊天入口",
     duration: "5 分钟",
@@ -253,6 +268,7 @@ export const mainScreens: Screen[] = [
     index: "06",
     title: "检查机器人与客户的聊天示例",
     phase: "每日运营",
+    cadence: "daily",
     summary: "优先看“机器人回复可能有错误”和“到店意向高”的聊天，判断是否合格；有问题就修改或交给真人销售。",
     output: "聊天检查结果和真人跟进任务",
     duration: "15 分钟",
@@ -270,6 +286,7 @@ export const mainScreens: Screen[] = [
     index: "07",
     title: "修改客户常问问题的答案",
     phase: "每日运营",
+    cadence: "daily",
     summary: "先改“客户问得多、满意度又低”的问题。答案中的价格、活动和服务范围必须来自最新门店资料。",
     output: "可直接用于客户回复的标准答案",
     duration: "15 分钟",
@@ -287,6 +304,7 @@ export const mainScreens: Screen[] = [
     index: "08",
     title: "选择机器人可以自动办理的服务",
     phase: "自动能力",
+    cadence: "setup",
     summary: "这里的“自动功能”不用安装软件。开启后可帮客户看户型、估价或预约量房；资料不全时会交给真人。",
     output: "已启用的自动接待功能",
     duration: "8 分钟",
@@ -304,6 +322,7 @@ export const mainScreens: Screen[] = [
     index: "09",
     title: "设置并试运行自动接待功能",
     phase: "自动能力",
+    cadence: "setup",
     summary: "选择什么情况下自动执行、使用哪份门店资料、缺资料时怎么追问。先用示例客户试运行，通过后再启用。",
     output: "经过试运行的自动接待功能",
     duration: "12 分钟",
@@ -321,7 +340,8 @@ export const mainScreens: Screen[] = [
     module: "recall",
     index: "01",
     title: "准备可用于客户跟进的活动",
-    phase: "每日运营",
+    phase: "资料设置",
+    cadence: "setup",
     summary: "系统只能使用这里已经确认、仍在有效期内而且还有名额的活动。请核对时间、权益、每天可接待人数和客户会看到的海报。",
     output: "可用于客户消息的活动",
     duration: "10 分钟",
@@ -339,6 +359,7 @@ export const mainScreens: Screen[] = [
     index: "02",
     title: "看哪些跟进方式更有效",
     phase: "每日运营",
+    cadence: "daily",
     summary: "先看客户回复率，再看预约量房和实际到店人数。页面会按每次联系和内容类型告诉你什么值得继续、什么应该减少。",
     output: "跟进效果结论",
     duration: "6 分钟",
@@ -356,6 +377,7 @@ export const mainScreens: Screen[] = [
     index: "03",
     title: "找出今天最值得跟进的客户",
     phase: "每日运营",
+    cadence: "daily",
     summary: "默认先显示跟进优先分高的人，也可以改成按下一次联系时间排序。客户已拒绝、已选别家或已成交时，系统不会再自动发消息。",
     output: "今天的待跟进客户名单",
     duration: "15 分钟",
@@ -373,6 +395,7 @@ export const mainScreens: Screen[] = [
     index: "04",
     title: "安排最多 7 次跟进消息",
     phase: "每日运营",
+    cadence: "daily",
     summary: "不是必须发满 7 次：客户一旦回复、明确拒绝、已选其他品牌或已成交，系统会立即停止后续自动消息。",
     output: "最多 7 次的客户跟进计划",
     duration: "12 分钟",
@@ -390,6 +413,7 @@ export const mainScreens: Screen[] = [
     index: "05",
     title: "选择自动生成的跟进内容",
     phase: "自动能力",
+    cadence: "setup",
     summary: "开启后，系统只会按客户情况生成知识海报或量房券草稿；开启不等于自动发送，仍需店长审核。",
     output: "可使用的自动跟进工具",
     duration: "5 分钟",
@@ -407,6 +431,7 @@ export const mainScreens: Screen[] = [
     index: "06",
     title: "制作按客户情况生成的知识海报",
     phase: "自动能力",
+    cadence: "setup",
     summary: "先选择客户情况和知识主题，再用示例客户预览。保存后只会生成草稿，发送前仍需店长审核。",
     output: "待审核的知识海报模板",
     duration: "8 分钟",
@@ -424,6 +449,7 @@ export const mainScreens: Screen[] = [
     index: "07",
     title: "制作免费上门量房券",
     phase: "自动能力",
+    cadence: "setup",
     summary: "只有客户地址在服务范围内，而且所选日期还有可预约名额，系统才会生成每位客户专属的量房券。",
     output: "可核对预约名额的量房券模板",
     duration: "8 分钟",
@@ -441,6 +467,7 @@ export const mainScreens: Screen[] = [
     index: "08",
     title: "发送前最后检查",
     phase: "每日运营",
+    cadence: "daily",
     summary: "系统会先核对地址、活动和发送频率；有黄色项目时，店长必须补完核对。批准后会按页面标出的时间发送，不是立即发送。",
     output: "已批准的定时发送名单",
     duration: "15 分钟",

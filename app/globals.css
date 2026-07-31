@@ -175,14 +175,90 @@ select:focus-visible {
 }
 
 .module-nav button.active {
+  background: #fff;
   color: var(--ink);
   font-weight: 700;
 }
 
-.module-nav button.active i::before {
-  color: var(--ink);
-  content: "● ";
+.task-nav-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.daily-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.task-nav-title {
+  display: grid;
+  gap: 1px;
+  padding: 0 8px 3px;
+}
+
+.task-nav-title b {
+  font-size: 14px;
+}
+
+.task-nav-title small,
+.setup-nav summary small {
+  color: var(--muted);
   font-size: 12px;
+  font-weight: 400;
+}
+
+.setup-nav {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.setup-nav summary {
+  align-items: center;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  list-style: none;
+  min-height: 42px;
+  padding: 4px 8px;
+}
+
+.setup-nav summary::-webkit-details-marker {
+  display: none;
+}
+
+.setup-nav summary::after {
+  content: "›";
+  font-size: 20px;
+  line-height: 1;
+  transform: rotate(90deg);
+}
+
+.setup-nav[open] summary::after {
+  transform: rotate(-90deg);
+}
+
+.setup-nav summary > span {
+  display: grid;
+  gap: 1px;
+}
+
+.setup-nav summary b {
+  font-size: 13px;
+}
+
+.setup-nav .screen-nav {
+  margin-top: 2px;
+}
+
+.setup-nav .screen-nav button {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 36px;
+}
+
+.setup-nav .screen-nav button.active {
+  color: var(--ink);
 }
 
 .screen-nav button {
@@ -2119,6 +2195,7 @@ textarea {
     position: relative;
   }
   .screen-nav,
+  .task-nav-groups,
   .nav-heading {
     display: none;
   }
@@ -2127,8 +2204,9 @@ textarea {
     grid-template-columns: repeat(3,1fr);
   }
   .module-nav button {
-    background: #fff;
-    border: 1px solid var(--line);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     gap: 0;
     justify-content: center;
     min-height: 48px;
@@ -2144,14 +2222,17 @@ textarea {
   .module-nav button small {
     display: none;
   }
+  .module-nav button.active {
+    background: transparent;
+    box-shadow: inset 0 -2px 0 var(--ink);
+  }
   .mobile-step-picker {
-    background: #fff;
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    background: transparent;
+    border: 0;
     display: grid;
     font-size: 13px;
     gap: 5px;
-    padding: 10px;
+    padding: 0;
   }
   .mobile-step-picker span {
     color: var(--muted);

@@ -6,15 +6,17 @@ import {
   mainScreens,
   moduleMeta,
   ModuleKey,
+  Screen,
 } from "./prototype-data";
 import { ScreenContent, WorkflowEventBridge } from "./prototype-screens";
 
 const moduleOrder: ModuleKey[] = ["video", "sales", "recall"];
 const phaseLabels: Record<string, string> = {
   引导流程: "首次设置",
-  每日任务: "每天使用",
-  每日运营: "每天查看",
-  自动能力: "按需设置",
+  每日任务: "今天要做",
+  每日运营: "今天要做",
+  自动能力: "设置与工具",
+  资料设置: "设置与工具",
   详情页: "详细记录",
 };
 
@@ -90,7 +92,7 @@ const pageDemos: Partial<Record<string, PageDemo>> = {
 };
 
 export default function PrototypeHub() {
-  const [activeId, setActiveId] = useState("video-business");
+  const [activeId, setActiveId] = useState("video-top");
   const [screenContexts, setScreenContexts] = useState<Record<string, DetailContext>>({});
   const [toast, setToast] = useState("");
   const screen = allScreens.find((item) => item.id === activeId) ?? allScreens[0];
@@ -122,6 +124,17 @@ export default function PrototypeHub() {
     () => mainScreens.filter((item) => item.module === screen.module),
     [screen.module],
   );
+  const dailyScreens = useMemo(
+    () => moduleScreens.filter((item) => item.cadence === "daily"),
+    [moduleScreens],
+  );
+  const setupScreens = useMemo(
+    () => moduleScreens.filter((item) => item.cadence === "setup"),
+    [moduleScreens],
+  );
+  const activeMainId = screen.detail ? screen.parent : screen.id;
+  const activeMainScreen = moduleScreens.find((item) => item.id === activeMainId);
+  const setupIsActive = activeMainScreen?.cadence === "setup";
 
   function goTo(id: string, context: DetailContext = {}) {
     const target = allScreens.find((item) => item.id === id);
@@ -143,6 +156,29 @@ export default function PrototypeHub() {
     window.setTimeout(() => setToast(""), 2200);
   }
 
+  function moduleLanding(key: ModuleKey) {
+    return (
+      mainScreens.find((item) => item.module === key && item.cadence === "daily") ??
+      mainScreens.find((item) => item.module === key)
+    );
+  }
+
+  function stepButton(item: Screen) {
+    const isActive = item.id === screen.id || item.id === screen.parent;
+    return (
+      <button
+        aria-current={isActive ? "page" : undefined}
+        className={isActive ? "active" : ""}
+        key={item.id}
+        onClick={() => goTo(item.id)}
+        type="button"
+      >
+        <i>{isActive ? "●" : "○"}</i>
+        <span>{item.index}　{item.title}</span>
+      </button>
+    );
+  }
+
   return (
     <main className={`product-app module-${screen.module}`}>
       <WorkflowEventBridge />
@@ -161,7 +197,7 @@ export default function PrototypeHub() {
             <button
               className={screen.module === key ? "active" : ""}
               key={key}
-              onClick={() => goTo(mainScreens.find((item) => item.module === key)?.id ?? "")}
+              onClick={() => goTo(moduleLanding(key)?.id ?? "")}
               type="button"
             >
               <i>{moduleMeta[key].index}</i>
@@ -173,33 +209,51 @@ export default function PrototypeHub() {
           ))}
         </nav>
 
-        <p className="nav-heading">步骤</p>
-        <nav className="screen-nav" aria-label={`${moduleMeta[screen.module].label}操作步骤`}>
-          {moduleScreens.map((item) => (
-            <button
-              className={item.id === screen.id || item.id === screen.parent ? "active" : ""}
-              key={item.id}
-              onClick={() => goTo(item.id)}
-              type="button"
-            >
-              <i>{item.id === screen.id || item.id === screen.parent ? "●" : "○"}</i>
-              <span>{item.index}　{item.title}</span>
-            </button>
-          ))}
-        </nav>
+        <div className="task-nav-groups">
+          <section className="daily-nav">
+            <div className="task-nav-title">
+              <b>今天要做</b>
+              <small>每天从这里开始</small>
+            </div>
+            <nav className="screen-nav" aria-label={`${moduleMeta[screen.module].label}今天要做`}>
+              {dailyScreens.map(stepButton)}
+            </nav>
+          </section>
+
+          <details className="setup-nav" key={screen.module} open={setupIsActive}>
+            <summary>
+              <span>
+                <b>设置与工具</b>
+                <small>首次使用或资料变化时再打开</small>
+              </span>
+            </summary>
+            <nav className="screen-nav" aria-label={`${moduleMeta[screen.module].label}设置与工具`}>
+              {setupScreens.map(stepButton)}
+            </nav>
+          </details>
+        </div>
 
         <label className="mobile-step-picker">
-          <span>选择本模块的操作步骤</span>
+          <span>选择要做的事</span>
           <select
-            aria-label="选择操作步骤"
+            aria-label="选择要做的事"
             value={screen.detail ? screen.parent : screen.id}
             onChange={(event) => goTo(event.target.value)}
           >
-            {moduleScreens.map((item) => (
-              <option key={item.id} value={item.id}>
-                第 {item.index} 步　{item.title}
-              </option>
-            ))}
+            <optgroup label="今天要做">
+              {dailyScreens.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="设置与工具（低频）">
+              {setupScreens.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.title}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </label>
 
@@ -210,7 +264,6 @@ export default function PrototypeHub() {
           <div>
             <span>
               {moduleMeta[screen.module].label} · {phaseLabels[screen.phase] ?? screen.phase}
-              {!screen.detail && ` · 第 ${screen.index} 步`}
             </span>
             <h1>{screen.title}</h1>
             <p>{screen.summary}</p>
