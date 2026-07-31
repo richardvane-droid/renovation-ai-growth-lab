@@ -177,6 +177,30 @@ test("keeps the shared page structure concise", async () => {
   assert.doesNotMatch(pageSource, /杜老板/);
 });
 
+test("switches 02-05 between the enterprise WeChat QR and cloud computer status", async () => {
+  const [screenSource, dataSource, css] = await Promise.all([
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(screenSource, /function WecomCloudStatus\(\)/);
+  assert.match(screenSource, /const \[loggedIn, setLoggedIn\] = useState\(false\)/);
+  assert.match(screenSource, /企业微信登录二维码演示/);
+  assert.match(screenSource, /企业微信还未登录/);
+  assert.match(screenSource, /下方为上次同步的数据，登录后会自动更新/);
+  assert.match(screenSource, /企业微信已连接，云电脑工作中/);
+  assert.match(screenSource, /<dt>门店账号<\/dt><dd>漳州龙文店<\/dd>/);
+  assert.match(screenSource, /<dt>工作状态<\/dt><dd>正在接待<\/dd>/);
+  assert.match(screenSource, /<dt>最近更新<\/dt><dd>今天 15:20<\/dd>/);
+  assert.match(screenSource, /仅演示：查看已登录状态/);
+  assert.match(screenSource, /<WecomCloudStatus \/>[\s\S]*className="filter-bar"/);
+  assert.match(dataSource, /先确认企业微信显示“正在接待”；看到二维码时先让门店员工扫码登录/);
+  assert.match(dataSource, /企业微信已连接，云电脑显示“正在接待”/);
+  assert.match(css, /\.wecom-login-state\s*\{[\s\S]*?grid-template-columns:\s*176px minmax\(0, 1fr\)/);
+  assert.match(css, /@media \(max-width: 820px\)[\s\S]*?\.wecom-login-state,[\s\S]*?grid-template-columns:\s*1fr/);
+});
+
 test("marks each sales reply as borrowable by default and keeps reviews per conversation", async () => {
   const [detailSource, screenSource, dataSource] = await Promise.all([
     readFile(new URL("../app/prototype-details.tsx", import.meta.url), "utf8"),

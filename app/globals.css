@@ -1921,6 +1921,201 @@ textarea {
 .rule-warning { background: var(--warning-bg) !important; color: var(--warning) !important; }
 .rule-warning p { font-size: 12px; line-height: 1.5; margin: 3px 0 0; }
 
+.wecom-cloud-card {
+  overflow: hidden;
+}
+
+.wecom-cloud-card.needs-login {
+  border-color: #e3c06b;
+}
+
+.wecom-cloud-card.is-running {
+  border-color: #b9dbc9;
+}
+
+.wecom-cloud-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wecom-demo-switch {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 2px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wecom-login-state {
+  align-items: center;
+  background: linear-gradient(90deg, #fffaf0, #fff);
+  border-radius: 7px;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 176px minmax(0, 1fr);
+  padding: 16px;
+}
+
+.wecom-qr-wrap {
+  align-items: center;
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+}
+
+.wecom-qr-wrap > small {
+  color: var(--muted);
+  font-size: 10px;
+  text-align: center;
+}
+
+.wecom-qr-code {
+  background-color: #fff;
+  background-image:
+    linear-gradient(90deg, #111 25%, transparent 25%, transparent 50%, #111 50%, #111 75%, transparent 75%),
+    linear-gradient(#111 25%, transparent 25%, transparent 50%, #111 50%, #111 75%, transparent 75%);
+  background-position: 0 0, 7px 7px;
+  background-size: 14px 14px;
+  border: 10px solid #fff;
+  box-shadow: 0 0 0 1px #cfcfcf;
+  height: 150px;
+  position: relative;
+  width: 150px;
+}
+
+.wecom-qr-finder {
+  background: #fff;
+  border: 6px solid #111;
+  height: 38px;
+  position: absolute;
+  width: 38px;
+}
+
+.wecom-qr-finder::after {
+  background: #111;
+  content: "";
+  inset: 7px;
+  position: absolute;
+}
+
+.wecom-qr-finder.top-left { left: 4px; top: 4px; }
+.wecom-qr-finder.top-right { right: 4px; top: 4px; }
+.wecom-qr-finder.bottom-left { bottom: 4px; left: 4px; }
+
+.wecom-login-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.wecom-login-copy strong {
+  font-size: 17px;
+}
+
+.wecom-login-copy p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 3px 0 0;
+}
+
+.wecom-login-copy ol {
+  display: grid;
+  gap: 7px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wecom-login-copy li {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.wecom-login-copy li b {
+  align-items: center;
+  background: #2c2c2c;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.wecom-login-copy .wecom-stale-note {
+  background: var(--warning-bg);
+  border-left: 3px solid #e3c06b;
+  color: #65522e;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.wecom-running-state {
+  align-items: center;
+  background: linear-gradient(90deg, #f0faf4, #fff);
+  border-radius: 7px;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto minmax(220px, 1fr) minmax(0, 1.4fr);
+  min-height: 82px;
+  padding: 14px 16px;
+}
+
+.wecom-running-dot {
+  background: var(--positive);
+  border: 4px solid #d9f1e4;
+  border-radius: 50%;
+  height: 22px;
+  width: 22px;
+}
+
+.wecom-running-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.wecom-running-copy strong {
+  font-size: 15px;
+}
+
+.wecom-running-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.wecom-work-status {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+}
+
+.wecom-work-status > div {
+  border-left: 1px solid #d9e9df;
+  display: grid;
+  gap: 3px;
+  padding: 0 12px;
+}
+
+.wecom-work-status dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.wecom-work-status dd {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+
 .metric-cards {
   display: grid;
   gap: 8px;
@@ -2598,6 +2793,24 @@ textarea {
     align-items: stretch;
     flex-direction: column;
   }
+  .wecom-login-state,
+  .wecom-running-state {
+    grid-template-columns: 1fr;
+  }
+  .wecom-running-dot {
+    display: none;
+  }
+  .wecom-work-status {
+    border-top: 1px solid #d9e9df;
+    padding-top: 10px;
+  }
+  .wecom-work-status > div:first-child {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .wecom-qr-wrap {
+    justify-self: center;
+  }
   .filter-bar input,
   .filter-bar select,
   .filter-bar .ui-button,
@@ -2715,6 +2928,22 @@ textarea {
   .top-video-grid,
   .metric-cards {
     grid-template-columns: 1fr;
+  }
+  .wecom-cloud-card .card-head,
+  .wecom-cloud-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .wecom-work-status {
+    grid-template-columns: 1fr;
+  }
+  .wecom-work-status > div {
+    border-left: 0;
+    border-top: 1px solid #d9e9df;
+    padding: 8px 0;
+  }
+  .wecom-work-status > div:first-child {
+    border-top: 0;
   }
   .pipeline {
     grid-template-columns: 1fr;

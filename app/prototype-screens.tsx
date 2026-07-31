@@ -1512,11 +1512,76 @@ function PromptScreen({ notify }: Pick<ScreenProps, "notify">) {
   );
 }
 
+function WecomCloudStatus() {
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  return (
+    <Card
+      title="企业微信连接"
+      caption={loggedIn ? "连接正常时无需操作" : "登录后，系统才会接待新客户并更新下面的数据"}
+      action={(
+        <div className="wecom-cloud-actions">
+          <Pill tone={loggedIn ? "positive" : "warning"}>{loggedIn ? "正在接待" : "等待扫码"}</Pill>
+          <button
+            aria-label={loggedIn ? "仅演示：查看未登录状态" : "仅演示：查看已登录状态"}
+            className="wecom-demo-switch"
+            onClick={() => setLoggedIn((current) => !current)}
+            type="button"
+          >
+            {loggedIn ? "仅演示：查看未登录状态" : "仅演示：查看已登录状态"}
+          </button>
+        </div>
+      )}
+      className={`wecom-cloud-card ${loggedIn ? "is-running" : "needs-login"}`}
+    >
+      <div aria-live="polite">
+        {loggedIn ? (
+          <div className="wecom-running-state">
+            <span aria-hidden="true" className="wecom-running-dot" />
+            <div className="wecom-running-copy">
+              <strong>企业微信已连接，云电脑工作中</strong>
+              <span>系统正在接收并回复新客户消息。</span>
+            </div>
+            <dl className="wecom-work-status">
+              <div><dt>门店账号</dt><dd>漳州龙文店</dd></div>
+              <div><dt>工作状态</dt><dd>正在接待</dd></div>
+              <div><dt>最近更新</dt><dd>今天 15:20</dd></div>
+            </dl>
+          </div>
+        ) : (
+          <div className="wecom-login-state">
+            <div className="wecom-qr-wrap">
+              <div aria-label="企业微信登录二维码演示" className="wecom-qr-code" role="img">
+                <span aria-hidden="true" className="wecom-qr-finder top-left" />
+                <span aria-hidden="true" className="wecom-qr-finder top-right" />
+                <span aria-hidden="true" className="wecom-qr-finder bottom-left" />
+              </div>
+              <small>演示二维码，不会连接真实企业微信</small>
+            </div>
+            <div className="wecom-login-copy">
+              <div>
+                <strong>企业微信还未登录</strong>
+                <p>请让已获授权的门店员工，用手机企业微信扫码登录。</p>
+              </div>
+              <ol>
+                <li><b>1</b><span>打开企业微信“扫一扫”</span></li>
+                <li><b>2</b><span>在手机上确认登录</span></li>
+              </ol>
+              <p className="wecom-stale-note">下方为上次同步的数据，登录后会自动更新。</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function MetricsScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
   const [day, setDay] = useState("今天 7/31");
   const cards = [["新增企微", "128", "比昨天多 14 人"], ["有效对话", "96", "75% 有效"], ["明确需求", "74", "58% 已说清"], ["预约到店", "18", "7 人尚未到店"], ["实际到店", "11", "比昨天多 3 人"]];
   return (
     <div className="stack">
+      <WecomCloudStatus />
       <div className="filter-bar"><div className="segmented">{["今天 7/31", "昨天 7/30", "近 7 天"].map((item) => <button className={day === item ? "active" : ""} key={item} onClick={() => setDay(item)}>{item}</button>)}</div><span>数据更新至今天 15:20</span><Button onClick={() => notify(`${day}接待结果链接已复制`)}>分享给店员</Button></div>
       <div className="metric-cards">{cards.map(([label,value,change]) => <Card key={label} className="metric-card"><span>{label}</span><strong>{value}</strong><small>{change}</small></Card>)}</div>
       <div className="action-alert"><div><b>今天最值得先处理</b><span>有 23 条机器人聊天等待店长检查，其中 3 条回复可能有错误。</span></div><Button kind="primary" onClick={() => goTo("sales-quality")}>检查这 23 条聊天</Button></div>
