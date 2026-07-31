@@ -8,7 +8,8 @@ import {
   ModuleKey,
   Screen,
 } from "./prototype-data";
-import { ScreenContent, WorkflowEventBridge } from "./prototype-screens";
+import { resetWorkflowDemo, ScreenContent, WorkflowEventBridge } from "./prototype-screens";
+import AccountAccess, { type AccessAccount } from "./account-access";
 
 const moduleOrder: ModuleKey[] = ["video", "sales", "recall"];
 const phaseLabels: Record<string, string> = {
@@ -59,19 +60,9 @@ const pageDemos: Partial<Record<string, PageDemo>> = {
     title: "核对一段可疑聊天",
     duration: "12 秒",
   },
-  "sales-plugin-config": {
-    src: "./demos/sales-plugin-config.mp4",
+  "sales-plugins": {
+    src: "./demos/sales-plugins.mp4",
     title: "配置、试运行并启用一项功能",
-    duration: "12 秒",
-  },
-  "recall-activities": {
-    src: "./demos/recall-activities.mp4",
-    title: "新增活动并提交审核",
-    duration: "12 秒",
-  },
-  "recall-cadence": {
-    src: "./demos/recall-cadence.mp4",
-    title: "检查一位客户的跟进节奏",
     duration: "12 秒",
   },
   "recall-poster": {
@@ -84,14 +75,41 @@ const pageDemos: Partial<Record<string, PageDemo>> = {
     title: "设置量房券规则",
     duration: "12 秒",
   },
-  "recall-review": {
-    src: "./demos/recall-review.mp4",
-    title: "核对并决定一条待发消息",
-    duration: "12 秒",
-  },
 };
 
-export default function PrototypeHub() {
+export default function StoreMarketingApp() {
+  const [account, setAccount] = useState<AccessAccount | null>(null);
+
+  if (!account) {
+    return (
+      <AccountAccess
+        onAccessGranted={(nextAccount) => {
+          setAccount(nextAccount);
+          window.history.replaceState(null, "", "#video-top");
+        }}
+      />
+    );
+  }
+
+  return (
+    <PrototypeHub
+      account={account}
+      onSignOut={() => {
+        resetWorkflowDemo();
+        setAccount(null);
+        window.history.replaceState(null, "", "#login");
+      }}
+    />
+  );
+}
+
+function PrototypeHub({
+  account,
+  onSignOut,
+}: {
+  account: AccessAccount;
+  onSignOut: () => void;
+}) {
   const [activeId, setActiveId] = useState("video-top");
   const [screenContexts, setScreenContexts] = useState<Record<string, DetailContext>>({});
   const [toast, setToast] = useState("");
@@ -121,7 +139,7 @@ export default function PrototypeHub() {
   }, []);
 
   const moduleScreens = useMemo(
-    () => mainScreens.filter((item) => item.module === screen.module),
+    () => mainScreens.filter((item) => item.module === screen.module && !item.parent),
     [screen.module],
   );
   const dailyScreens = useMemo(
@@ -132,7 +150,7 @@ export default function PrototypeHub() {
     () => moduleScreens.filter((item) => item.cadence === "setup"),
     [moduleScreens],
   );
-  const activeMainId = screen.detail ? screen.parent : screen.id;
+  const activeMainId = navigationRootId(screen.id);
   const activeMainScreen = moduleScreens.find((item) => item.id === activeMainId);
   const setupIsActive = activeMainScreen?.cadence === "setup";
 
@@ -164,7 +182,7 @@ export default function PrototypeHub() {
   }
 
   function stepButton(item: Screen) {
-    const isActive = item.id === screen.id || item.id === screen.parent;
+    const isActive = item.id === activeMainId;
     return (
       <button
         aria-current={isActive ? "page" : undefined}
@@ -237,7 +255,7 @@ export default function PrototypeHub() {
           <span>选择要做的事</span>
           <select
             aria-label="选择要做的事"
-            value={screen.detail ? screen.parent : screen.id}
+            value={activeMainId}
             onChange={(event) => goTo(event.target.value)}
           >
             <optgroup label="今天要做">
@@ -257,6 +275,13 @@ export default function PrototypeHub() {
           </select>
         </label>
 
+        <div className="account-summary">
+          <div>
+            <b>{account.storeName}</b>
+            <span>{account.contact} · 已开通</span>
+          </div>
+          <button onClick={onSignOut} type="button">退出</button>
+        </div>
       </aside>
 
       <section className="app-main">
@@ -323,6 +348,18 @@ export default function PrototypeHub() {
       {toast && <div className="toast" role="status">{toast}</div>}
     </main>
   );
+}
+
+function navigationRootId(id: string) {
+  let current = allScreens.find((item) => item.id === id);
+  const seen = new Set<string>();
+
+  while (current?.parent && !seen.has(current.id)) {
+    seen.add(current.id);
+    current = allScreens.find((item) => item.id === current?.parent) ?? current;
+  }
+
+  return current?.id ?? id;
 }
 
 function PageDemoVideo({ demo }: { demo: PageDemo }) {

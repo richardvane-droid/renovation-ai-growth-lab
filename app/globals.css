@@ -50,6 +50,10 @@ button {
   touch-action: manipulation;
 }
 
+button:disabled {
+  cursor: not-allowed;
+}
+
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -286,6 +290,251 @@ select:focus-visible {
 
 .mobile-step-picker {
   display: none;
+}
+
+.account-summary {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 12px 8px 0;
+}
+
+.account-summary > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.account-summary b {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.account-summary button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 6px;
+}
+
+.account-access {
+  align-items: center;
+  background: var(--canvas);
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.account-access-panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  display: grid;
+  gap: 20px;
+  max-width: 520px;
+  padding: 32px;
+  width: 100%;
+}
+
+.account-access-header {
+  display: grid;
+  gap: 5px;
+}
+
+.account-access-kicker {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-access-header h1,
+.account-access-success h2 {
+  font-size: 28px;
+  margin: 0;
+}
+
+.account-access-header p,
+.account-access-success p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.account-access-tabs {
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 22px;
+}
+
+.account-access-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 10px 0;
+}
+
+.account-access-tabs button.active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.account-access-form,
+.account-access-payment,
+.account-access-success {
+  display: grid;
+  gap: 16px;
+}
+
+.account-access-field {
+  display: grid;
+  gap: 6px;
+}
+
+.account-access-field > span,
+.account-access-payment-methods legend {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-access-field input {
+  background: #fff;
+  border: 1px solid var(--line-dark);
+  border-radius: 8px;
+  min-height: 46px;
+  padding: 0 12px;
+  width: 100%;
+}
+
+.account-access-field small {
+  color: var(--muted);
+}
+
+.account-access-error {
+  color: var(--danger) !important;
+  font-size: 12px;
+  margin: 0;
+}
+
+.account-access-primary,
+.account-access-secondary {
+  border-radius: 8px;
+  font-weight: 700;
+  min-height: 46px;
+  padding: 0 16px;
+}
+
+.account-access-primary {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  color: #fff;
+}
+
+.account-access-primary:disabled {
+  background: #aaa;
+  border-color: #aaa;
+}
+
+.account-access-secondary {
+  background: #fff;
+  border: 1px solid var(--line-dark);
+}
+
+.account-access-demo-hint,
+.account-access-demo-warning,
+.account-access-account-summary {
+  background: var(--soft);
+  border-radius: 8px;
+  display: grid;
+  font-size: 12px;
+  gap: 3px;
+  padding: 12px;
+}
+
+.account-access-demo-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.account-access-agreement,
+.account-access-payment-methods label {
+  align-items: flex-start;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.account-access-agreement input,
+.account-access-payment-methods input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.account-access-price {
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 2px;
+  padding-bottom: 14px;
+}
+
+.account-access-price span,
+.account-access-price small {
+  color: var(--muted);
+}
+
+.account-access-price strong {
+  font-size: 34px;
+}
+
+.account-access-payment-methods {
+  border: 0;
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.account-access-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.account-access-success {
+  justify-items: center;
+  text-align: center;
+}
+
+.account-access-success .account-access-account-summary {
+  justify-items: start;
+  text-align: left;
+  width: 100%;
+}
+
+.account-access-success-mark {
+  align-items: center;
+  background: var(--positive-bg);
+  border-radius: 50%;
+  color: var(--positive);
+  display: flex;
+  font-size: 28px;
+  font-weight: 800;
+  height: 58px;
+  justify-content: center;
+  width: 58px;
 }
 
 .app-main {
@@ -1617,7 +1866,6 @@ textarea {
 .activities-layout,
 .poster-layout,
 .coupon-layout,
-.review-layout,
 .cadence-layout,
 .quality-layout {
   display: grid;
@@ -1880,25 +2128,6 @@ textarea {
 .toggle-line { align-items:center; display:flex !important; font-size: 12px; gap:8px; grid-template-columns:auto 1fr; min-height:34px; }
 .toggle-line input { height:18px; margin:0; width:18px; }
 
-.flow-steps {
-  display: grid;
-  gap: 4px;
-  grid-template-columns: repeat(5,1fr);
-}
-
-.flow-steps > div {
-  background: #f6f6f6;
-  border-radius: 5px;
-  display: grid;
-  font-size: 11px;
-  gap: 5px;
-  min-height: 78px;
-  padding: 8px;
-  text-align: center;
-}
-
-.flow-steps i { align-items:center; background:#333; border-radius:50%; color:#fff; display:flex; font-style:normal; height:19px; justify-content:center; margin:auto; width:19px; }
-
 .activity-list { align-content:start; display:grid; gap:7px; }
 .activity-list article { align-items:center; background:#f8f8f8; border:1px solid var(--line); border-radius:7px; display:grid; gap:8px; grid-template-columns:1fr auto 48px 48px; padding:8px; }
 .activity-list article > div { display:grid; gap:3px; }
@@ -2017,6 +2246,12 @@ textarea {
 
 .recall-plugin-cards { grid-template-columns:repeat(2,1fr); }
 
+.subpage-back {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
 .knowledge-poster,
 .coupon-card {
   background: linear-gradient(145deg,#162c23,#5c806e);
@@ -2043,54 +2278,10 @@ textarea {
 .coupon-code { background:#fff; border-radius:8px; color:#7b4b1e; font-size: 15px; font-weight:800; padding:14px; text-align:center; }
 .coupon-card > span { font-size: 13px; }
 
-.review-layout { grid-template-columns:250px minmax(0,1fr); }
-.pending-list { align-content:start; display:grid; gap:6px; }
-.pending-list > button { align-items:center; background:#f7f7f7; border:1px solid var(--line); border-radius:7px; display:flex; gap:8px; justify-content:space-between; min-height:66px; padding:10px; text-align:left; }
-.pending-list > button.active { background:var(--warning-bg); border-color:#e3c06b; }
-.pending-list > button > div { display:grid; gap:3px; }
-.pending-list b { font-size: 12px; }
-.pending-list span,.pending-list small { color:var(--muted); font-size: 11px; }
-.review-evidence { align-content:start; display:grid; gap:8px; }
-.check-list { display:grid; gap:4px; grid-template-columns:repeat(2,1fr); }
-.check-list > div { align-items:center; background:#f7faf8; border-radius:5px; display:grid; font-size: 12px; gap:7px; grid-template-columns:18px 1fr auto; min-height:42px; padding:8px; }
-.check-list > div > span { color:var(--positive); }
-.check-list > div.needs-check {
-  background: var(--warning-bg);
-  border: 1px solid #e3c06b;
-}
-.check-list > div.needs-check > span { color: var(--warning); font-weight: 800; }
-
-.verification-action {
-  align-items: center;
-  background: var(--warning-bg);
-  border: 1px solid #e3c06b;
-  border-radius: 8px;
-  display: grid;
-  font-size: 12px;
-  gap: 6px;
-  grid-template-columns: auto 1fr auto;
-  padding: 10px;
-}
-
 .chat.review-tip {
   background: var(--warning-bg);
   border-color: #e3c06b;
 }
-
-.stop-confirm {
-  background: var(--danger-bg);
-  border: 1px solid #edcccc;
-  border-radius: 8px;
-  color: #762626;
-  display: grid;
-  gap: 7px;
-  padding: 12px;
-}
-
-.stop-confirm b { font-size: 14px; }
-.stop-confirm p { font-size: 13px; line-height: 1.6; margin: 0; }
-.stop-confirm label { display: grid; font-size: 12px; gap: 5px; }
-.stop-confirm input { border: 1px solid #caa; border-radius: 6px; font: inherit; min-height: 40px; padding: 8px; }
 
 .detail-layout {
   display:grid;
@@ -2103,6 +2294,13 @@ textarea {
   align-content:start;
   display:grid;
   gap:10px;
+}
+
+.detail-main {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
 }
 
 .detail-side {
@@ -2246,6 +2444,9 @@ textarea {
     padding: 0 10px;
     width: 100%;
   }
+  .account-summary {
+    margin-top: 0;
+  }
   .app-main {
     height: auto;
     min-height: 0;
@@ -2297,7 +2498,6 @@ textarea {
   .activities-layout,
   .poster-layout,
   .coupon-layout,
-  .review-layout,
   .cadence-layout,
   .quality-layout,
   .detail-layout {
@@ -2363,13 +2563,9 @@ textarea {
     min-width: 540px;
   }
   .filter-bar,
-  .action-alert,
-  .verification-action {
+  .action-alert {
     align-items: stretch;
     flex-direction: column;
-  }
-  .verification-action {
-    grid-template-columns: 1fr;
   }
   .filter-bar input,
   .filter-bar select,
@@ -2379,11 +2575,9 @@ textarea {
   }
   .source-selects,
   .score-grid,
-  .check-grid,
-  .check-list {
+  .check-grid {
     grid-template-columns: 1fr;
   }
-  .flow-steps,
   .pipeline {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2455,6 +2649,24 @@ textarea {
   }
 }
 
+@media (max-width: 560px) {
+  .account-access {
+    align-items: stretch;
+    padding: 0;
+  }
+  .account-access-panel {
+    border: 0;
+    border-radius: 0;
+    max-width: none;
+    min-height: 100vh;
+    padding: 24px 18px;
+  }
+  .account-access-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 440px) {
   .activity-list article > strong,
   .activity-list article > button {
@@ -2473,7 +2685,6 @@ textarea {
   .metric-cards {
     grid-template-columns: 1fr;
   }
-  .flow-steps,
   .pipeline {
     grid-template-columns: 1fr;
   }

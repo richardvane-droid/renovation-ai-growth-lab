@@ -570,36 +570,21 @@ function VideoCompetitorDetail({ screen, goTo, notify, context }: DetailPageProp
       decisionHint="可以学“先讲痛点、再给方案”，不能照搬对方户型、价格、文案和客户画面。"
       checks={[`用播放按钮从头看完 ${duration}`, `确认本店有“${title}”相关真实案例`, "只借结构，不复制具体内容"]}
       actions={(
-        <>
-          <Button
-            disabled={!watched}
-            kind="primary"
-            onClick={() => {
-              emitDetailEvent("demo-top-video-selected", {
-                account,
-                decision: "selected",
-                rank,
-                videoTitle: title,
-              });
-              notify("已选为今天的参考视频，返回列表后会显示已选");
-            }}
-          >
-            {watched ? "用这条做今天的参考" : "先播放完整视频"}
-          </Button>
-          <Button
-            onClick={() => {
-              emitDetailEvent("demo-top-video-selected", {
-                account,
-                decision: "skipped",
-                rank,
-                videoTitle: title,
-              });
-              notify("已跳过这条，返回继续看其他候选");
-            }}
-          >
-            不选这条，继续看下一条
-          </Button>
-        </>
+        <Button
+          disabled={!watched}
+          kind="primary"
+          onClick={() => {
+            emitDetailEvent("demo-top-video-selected", {
+              account,
+              decision: "selected",
+              rank,
+              videoTitle: title,
+            });
+            notify("已选为今天的参考视频，返回列表后会显示已选");
+          }}
+        >
+          {watched ? "用这条做今天的参考" : "先播放完整视频"}
+        </Button>
       )}
     >
       <div style={ui.twoColumns}>
@@ -645,12 +630,7 @@ function VideoLogDetail({ screen, goTo, notify }: DetailPageProps) {
       decision="看到一次红色失败后，店长要不要处理？"
       decisionHint="本例已经显示“自动重试成功”，所以不用重新上传。只有最新状态仍是红色才处理。"
       checks={["先看最下面一条最新记录", "“已恢复”表示系统已解决", "仍是红色再只重做出错步骤"]}
-      actions={(
-        <>
-          <Button kind="primary" onClick={() => { notify("已确认任务正常，将继续自动制作"); goTo(screen.parent ?? "video-progress"); }}>已恢复，不用处理，返回看进度</Button>
-          <Button onClick={() => notify("已只重做“生成口播”，其他完成内容不会丢失")}>声音还是不对，只重做口播</Button>
-        </>
-      )}
+      actions={<Button kind="primary" onClick={() => { notify("已确认任务正常，将继续自动制作"); goTo(screen.parent ?? "video-progress"); }}>已恢复，不用处理，返回看进度</Button>}
     >
       <div style={ui.stack}>
         <div style={ui.positive}>
@@ -1424,57 +1404,159 @@ function RecallCustomerDetail({ screen, goTo, notify, context }: DetailPageProps
   const nextAction = context?.nextAction ?? "1 天后发同小区收纳案例";
   const nextTime = context?.nextTime ?? "明天 10:00";
   const initiallyStopped = nextTime === "已停止" || contactStage.includes("拒绝");
-  const [followupStatus, setFollowupStatus] = useState<"active" | "assigned" | "stopped">(
-    initiallyStopped
-      ? "stopped"
-      : context?.currentStatus === "assigned" || nextAction.includes("已交给销售")
-        ? "assigned"
-        : "active",
-  );
-  const [assignedDue, setAssignedDue] = useState(context?.currentStatus === "assigned" ? nextTime : "今天 17:00 前");
-  const stopped = followupStatus === "stopped";
-  const assignedToSales = followupStatus === "assigned";
+  const [stopped, setStopped] = useState(initiallyStopped);
+  const [selected, setSelected] = useState(2);
+  const [touchUpdates, setTouchUpdates] = useState<Record<string, {
+    attachment?: string;
+    interval?: string;
+    message?: string;
+    sendReason?: string;
+    status?: string;
+    title?: string;
+  }>>({});
+  const [sourceLocks, setSourceLocks] = useState<Record<string, string>>({});
+  const examples: Record<string, {
+    budget: string;
+    caseTitle: string;
+    knowledgeTitle: string;
+    requirement: string;
+  }> = {
+    "林女士": { budget: "预算约 15 万", caseTitle: "同小区 118㎡原木风收纳案例", knowledgeTitle: "15 万预算如何分配更合理", requirement: "118㎡，偏原木风" },
+    "陈先生": { budget: "预算还没确认", caseTitle: "新房 98㎡动线布局案例", knowledgeTitle: "拿房后先确认的 7 件事", requirement: "已发户型图，风格待确认" },
+    "周女士": { budget: "正在比较总价", caseTitle: "105㎡控制预算的柜体案例", knowledgeTitle: "基础项和升级项怎么区分", requirement: "关注价格，尚未到店" },
+    "吴先生": { budget: "预算暂缓", caseTitle: "130㎡环保板材与施工案例", knowledgeTitle: "暂缓装修时可以先准备什么", requirement: "已量房，装修计划暂缓" },
+    "张女士": { budget: "预算待细化", caseTitle: "89㎡奶油风落地案例", knowledgeTitle: "奶油风选材避坑清单", requirement: "看过案例，偏好还没确认" },
+    "黄先生": { budget: "预算还没说明", caseTitle: "102㎡新房收纳布局案例", knowledgeTitle: "第一次做全屋定制先看什么", requirement: "刚加企微，尚未说清需求" },
+    "王女士": { budget: "多次比较价格", caseTitle: "120㎡分阶段控制预算案例", knowledgeTitle: "预算拆分与可选项说明", requirement: "关注价格，暂不推活动" },
+    "李先生": { budget: "已停止沟通", caseTitle: "原计划案例（仅保留记录）", knowledgeTitle: "原计划知识内容（仅保留记录）", requirement: "已明确选择其他品牌" },
+  };
+  const example = examples[name] ?? {
+    budget: "预算待确认",
+    caseTitle: `适合“${stage}”客户的门店案例`,
+    knowledgeTitle: "当前阶段需要先确认的事项",
+    requirement: `${stage}，${contactStage}`,
+  };
 
   useEffect(() => {
     function receiveStatus(event: Event) {
       const detail = (event as CustomEvent<Record<string, string>>).detail;
       if (detail.customerName !== name) return;
-      const status = detail.status === "stopped" || detail.status === "assigned" ? detail.status : "active";
-      setFollowupStatus(status);
-      if (detail.due) setAssignedDue(detail.due);
+      setStopped(detail.status === "stopped");
+    }
+    function receiveMessage(event: Event) {
+      const detail = (event as CustomEvent<Record<string, string>>).detail;
+      if (detail.customerName !== name || !detail.touchNumber) return;
+      setTouchUpdates((current) => ({
+        ...current,
+        [detail.touchNumber]: {
+          attachment: detail.attachment,
+          interval: detail.touchTime,
+          message: detail.message,
+          sendReason: detail.sendReason,
+          status: "已安排",
+          title: detail.touchTitle,
+        },
+      }));
+    }
+    const sourceTitles = [
+      example.knowledgeTitle,
+      example.caseTitle,
+      example.budget === "预算还没确认" ? "如何先确定适合自己的装修预算" : `${example.budget}的项目拆分说明`,
+      "免费上门量房体验券",
+      "ENF 板材检测与工艺细节",
+      "暑期焕新季 · 周末 2 个名额",
+      "礼貌询问是否还需要帮助",
+    ];
+    function receiveSourceStatus(event: Event) {
+      const detail = (event as CustomEvent<Record<string, string>>).detail;
+      const touchIndex = sourceTitles.findIndex((title) => title === detail.touchTitle);
+      if (touchIndex < 0) return;
+      setSourceLocks((current) => ({
+        ...current,
+        [String(touchIndex + 1)]: detail.reason || "",
+      }));
+    }
+    function requestSourceStatuses() {
+      sourceTitles.forEach((touchTitle) => {
+        emitDetailEvent("demo-cadence-source-status-request", { touchTitle });
+      });
     }
     window.addEventListener("demo-customer-followup-status-response", receiveStatus);
+    window.addEventListener("demo-cadence-message-status-response", receiveMessage);
+    window.addEventListener("demo-cadence-source-status-response", receiveSourceStatus);
+    window.addEventListener("demo-workflow-status-changed", requestSourceStatuses);
     const requestTimer = window.setTimeout(() => {
       emitDetailEvent("demo-customer-followup-status-request", { customerName: name });
+      for (let touchNumber = 1; touchNumber <= 7; touchNumber += 1) {
+        emitDetailEvent("demo-cadence-message-status-request", {
+          customerName: name,
+          touchNumber: String(touchNumber),
+        });
+      }
+      requestSourceStatuses();
     }, 0);
     return () => {
       window.clearTimeout(requestTimer);
       window.removeEventListener("demo-customer-followup-status-response", receiveStatus);
+      window.removeEventListener("demo-cadence-message-status-response", receiveMessage);
+      window.removeEventListener("demo-cadence-source-status-response", receiveSourceStatus);
+      window.removeEventListener("demo-workflow-status-changed", requestSourceStatuses);
     };
-  }, [name]);
+  }, [example.budget, example.caseTitle, example.knowledgeTitle, name]);
 
   const history = [
-    ["7/21", "加企微并发送户型收集表", "客户发来 118㎡户型"],
-    ["7/22", "机器人确认原木风、15 万预算", "客户回复"],
-    ["7/24", "发送同小区收纳案例", "客户已阅读"],
-    ["7/27", "人工发初步报价", "客户问活动价格"],
-    ["7/29", "客户未再回复，进入自动跟进", "自动等待 2 天"],
+    ["7/21", "加企微并开始了解装修需求", example.requirement],
+    ["7/22", `机器人记录客户情况：${example.budget}`, "客户资料已更新"],
+    ["7/24", `发送：${example.caseTitle}`, "客户已阅读"],
+    ["7/27", `人工沟通，当前结果：${contactStage}`, stage],
+    ["7/29", "客户暂未继续回复，进入自动跟进", "按客户情况等待"],
     ["7/31", stopped ? "客户明确拒绝，自动消息已停止" : nextAction, stopped ? "已停止" : `计划：${nextTime}`],
   ];
+  const baseTouches = [
+    ["1", "知识", example.knowledgeTitle, "加企微后 1 天", "已发送"],
+    ["2", "案例", example.caseTitle, "第 1 次后 2 天", "已发送"],
+    ["3", "知识", example.budget === "预算还没确认" ? "如何先确定适合自己的装修预算" : `${example.budget}的项目拆分说明`, "第 2 次后 2 天", "已安排"],
+    ["4", "权益", "免费上门量房体验券", "第 3 次后 3 天", "已安排"],
+    ["5", "证明", "ENF 板材检测与工艺细节", "第 4 次后 3 天", "待生成"],
+    ["6", "活动", "暑期焕新季 · 周末 2 个名额", "第 5 次后 5 天", "待生成"],
+    ["7", "关怀", "礼貌询问是否还需要帮助", "第 6 次后 7 天", "待生成"],
+  ];
+  const touches = baseTouches.map((row) => {
+    const update = touchUpdates[row[0]];
+    const sourceLockReason = row[4] === "已发送" ? "" : sourceLocks[row[0]];
+    const status = stopped && row[4] !== "已发送"
+      ? "已停止"
+      : sourceLockReason
+        ? "来源已暂停"
+        : update?.status || row[4];
+    return [
+      row[0],
+      row[1],
+      update?.title || row[2],
+      update?.interval || row[3],
+      status,
+      update?.message || "",
+      update?.attachment || "",
+      update?.sendReason || "",
+      sourceLockReason || "",
+    ];
+  });
+  const current = touches[selected];
+  const alreadySent = current[4] === "已发送";
+  const sourceLocked = Boolean(current[8]);
+  const previewMessage = current[5] || (current[2].includes("预算")
+    ? `${name}，结合您之前问过的总价，我整理了一份预算拆分说明，帮助您分清基础项和升级项。您方便时看看，不着急回复。`
+    : `这条“${current[2]}”会结合${name}之前的沟通生成；发送前自动检查客户状态和资料是否仍有效。`);
 
   return (
     <DetailShell
       screen={screen}
       goTo={goTo}
-      decision={stopped ? `${name}已经明确拒绝，是否保持“停止自动联系”？` : assignedToSales ? `${name}已经交给销售小陈，是否查看记录或停止联系？` : `${name}下一步是继续自动跟进，还是让销售人工联系？`}
-      decisionHint={stopped ? "客户明确拒绝后不应重新自动发送；保留记录，只有销售在有正当理由时才可人工处理。" : assignedToSales ? "自动计划已暂停，销售小陈需在页面标出的时间前查看；不要再让系统自动发送。" : `客户当前是“${stage}”，跟进优先分 ${priorityScore} / 100；结合最近聊天决定下一步。`}
-      checks={["看客户现在到哪一步和最近一次聊天", "看跟进优先分及是否明确拒绝", stopped ? "保持停止，不要重新安排自动消息" : "高意向客户优先交给真人"]}
+      decision={stopped ? `${name}已经明确拒绝，查看记录并保持停止` : `结合${name}以前的沟通，安排接下来发送什么`}
+      decisionHint={stopped ? "客户明确拒绝后不再自动发送；历史记录和原计划仍保留供查看。" : `客户当前是“${stage}”，跟进优先分 ${priorityScore} / 100。历史和后续消息放在同一页，避免来回切换。`}
+      checks={["先看客户以前怎么交流", "再看最多 7 次的后续内容和时间", stopped ? "保持停止，不再安排新消息" : "需要修改时只编辑当前这一条"]}
       actions={(
-        <>
-          {!stopped && !assignedToSales && <Button onClick={() => notify(`已按原计划：${nextTime}执行“${nextAction}”`)}>继续按原计划自动跟进</Button>}
-          <Button disabled={assignedToSales || stopped} kind={stopped ? "default" : "primary"} onClick={() => { const due = "今天 17:00 前"; setAssignedDue(due); setFollowupStatus("assigned"); emitDetailEvent("demo-customer-followup-decision", { action: "assigned", customerName: name, due }); notify(`已分配给销售小陈：${due}查看${name}的记录；自动计划已暂停，返回列表可见`); }}>{stopped ? "已停止，不能再创建人工任务" : assignedToSales ? `已交给销售小陈 · ${assignedDue}` : "交给销售人工查看"}</Button>
-          <Button disabled={stopped} kind="danger" onClick={() => { setFollowupStatus("stopped"); emitDetailEvent("demo-customer-followup-decision", { action: "stopped", customerName: name }); notify(`已停止给${name}自动发送，保留客户记录；返回客户列表会归入“已停止”`); }}>{stopped ? "自动联系已停止" : "客户明确拒绝，停止自动联系"}</Button>
-        </>
+        <Button disabled={stopped} kind="danger" onClick={() => { setStopped(true); emitDetailEvent("demo-customer-followup-decision", { action: "stopped", customerName: name }); notify(`已停止给${name}自动发送，历史和原计划仍保留`); }}>{stopped ? "自动联系已停止" : "客户明确拒绝，停止自动联系"}</Button>
       )}
     >
       <div style={ui.stack}>
@@ -1482,10 +1564,11 @@ function RecallCustomerDetail({ screen, goTo, notify, context }: DetailPageProps
           <div className="avatar-large">{name.slice(0, 1)}</div>
           <div>
             <h3>{name}｜客户跟进详情</h3>
-            <p>{stage} · {contactStage} · {stopped ? "不会再自动发送" : assignedToSales ? "自动计划已暂停，等待销售小陈查看" : `下一次：${nextTime}`}</p>
-            <div className="chip-wrap"><Pill tone={stopped ? "neutral" : Number(priorityScore) > 70 ? "positive" : "warning"}>跟进优先分 {priorityScore} / 100</Pill><Pill>{stopped ? "已停止自动联系" : assignedToSales ? "已交给销售人工" : "等待决定"}</Pill></div>
+            <p>{stage} · {contactStage} · {stopped ? "不会再自动发送" : `下一次：${nextTime}`}</p>
+            <div className="chip-wrap"><Pill tone={stopped ? "neutral" : Number(priorityScore) > 70 ? "positive" : "warning"}>跟进优先分 {priorityScore} / 100</Pill><Pill>{stopped ? "已停止自动联系" : "计划进行中"}</Pill></div>
           </div>
         </div>
+        <h3 style={ui.miniHeading}>以前怎么沟通</h3>
         <div className="timeline-detail">
           {history.map(([date, event, result], index) => (
             <div key={date} style={{ gridTemplateColumns: "40px minmax(0, 1fr) 120px" }}>
@@ -1495,9 +1578,40 @@ function RecallCustomerDetail({ screen, goTo, notify, context }: DetailPageProps
             </div>
           ))}
         </div>
+        <h3 style={ui.miniHeading}>接下来发送什么</h3>
+        <div className="cadence-layout customer-cadence">
+          <Card title={`${name}｜最多 7 次的后续内容`} caption="客户回复、拒绝或成交后立即停止，不要求发满 7 次" className="touch-list">
+            {touches.map((row, index) => <button className={index === selected ? "active" : ""} key={row[0]} onClick={() => setSelected(index)}><i>{row[0]}</i><div><Pill>{row[1]}</Pill><b>{row[2]}</b><span>{row[3]}</span></div><Pill tone={row[4] === "已发送" ? "positive" : row[4] === "已停止" ? "neutral" : row[4] === "已安排" ? "warning" : "neutral"}>{row[4]}</Pill></button>)}
+          </Card>
+          <Card title={`第 ${current[0]} 次 · ${current[2]}`} caption={`当前状态：${current[4]}`} className="touch-detail">
+            <div className="message-preview"><small>给{name}的内容</small><p>{previewMessage}</p><span>{current[6] ? `附件：${current[6]}` : "附件会在编辑时确认"} · 演示数据</span></div>
+            {sourceLocked && <div style={ui.warning}><b style={ui.title}>这条不会发送</b><p style={ui.copy}>原因：{current[8]}。请先到对应工具恢复资料。</p></div>}
+            <div className="rule-box"><b>为什么这时发送</b><p>{current[7] || (current[2].includes("预算") ? "客户问过总价，但还没看懂基础项和升级项；先解释，不急着推活动。" : "内容与客户当前装修阶段相符，并且距离上一次联系时间足够。")}</p></div>
+            <div className="button-row">
+              <Button
+                disabled={(stopped || sourceLocked) && !alreadySent}
+                kind={alreadySent ? "default" : "primary"}
+                onClick={() => goTo("recall-cadence-detail", {
+                  customerName: name,
+                  touchNumber: current[0],
+                  touchTitle: current[2],
+                  touchTime: current[3],
+                  currentMessage: current[5],
+                  currentAttachment: current[6],
+                  currentReason: current[7],
+                  currentStatus: alreadySent ? "已发送" : current[4],
+                  customerLockReason: stopped ? `${name}已停止自动联系` : "",
+                  sourceLockReason: current[8],
+                })}
+              >
+                {alreadySent ? "查看当时发送的内容" : stopped ? "客户已停止，不能修改" : sourceLocked ? "资料已暂停，不能修改" : "编辑这条消息"}
+              </Button>
+            </div>
+          </Card>
+        </div>
         <div style={ui.warning}>
-          <b style={ui.title}>系统建议的理由</b>
-          <p style={ui.copy}>{stopped ? "客户已经明确拒绝，系统保持停止。不要因为优先分或旧记录又自动发消息。" : assignedToSales ? `销售小陈负责在${assignedDue}查看；自动计划已暂停，避免与人工重复联系。` : `系统建议结合“${stage}”和最近沟通处理；当前计划是“${nextAction}”。`}</p>
+          <b style={ui.title}>停止条件始终有效</b>
+          <p style={ui.copy}>客户回复、明确拒绝、已选其他品牌、已成交或要求不要再联系时，后面的未发送消息都会立即停止。</p>
         </div>
       </div>
     </DetailShell>
@@ -1524,7 +1638,7 @@ function RecallCadenceDetail({ screen, goTo, notify, context }: DetailPageProps)
       ? "活动"
       : "内容来源";
   const blockedDecisionHint = customerLockReason
-    ? `${customerName}已经停止自动联系或交给销售人工处理。请回到客户列表处理，不能从消息详情重新启动自动计划。`
+    ? `${customerName}已经停止自动联系。请回到客户详情查看记录，不能从消息详情重新启动自动计划。`
     : `这条消息使用的${sourceType}已经暂停或停用。请先回到对应的${sourceType}设置恢复，不能从消息详情绕过停止状态。`;
   const defaultMessage = touchTitle.includes("预算")
     ? `${customerName}，结合您之前问过的总价，我整理了一份预算拆分说明，帮助您分清柜体基础项和升级项。您方便时看看，不着急回复。`
@@ -1544,7 +1658,6 @@ function RecallCadenceDetail({ screen, goTo, notify, context }: DetailPageProps)
       const detail = (event as CustomEvent<Record<string, string>>).detail;
       if (detail.customerName !== customerName) return;
       if (detail.status === "stopped") setCustomerLockReason(`${customerName}已停止自动联系`);
-      else if (detail.status === "assigned") setCustomerLockReason(`${customerName}已交给销售小陈人工查看（${detail.due || "等待处理"}），自动计划已暂停`);
       else setCustomerLockReason("");
     }
     function receiveSourceStatus(event: Event) {
@@ -1568,14 +1681,15 @@ function RecallCadenceDetail({ screen, goTo, notify, context }: DetailPageProps)
     };
   }, [customerName, touchTitle]);
 
-  function recordMessage(action: "draft" | "submitted") {
+  function recordMessage() {
     if (readOnly) return;
     emitDetailEvent("demo-cadence-message-saved", {
-      action,
+      action: "saved",
       attachment,
       customerName,
       message,
       sendReason,
+      status: "已安排",
       touchNumber,
       touchTime: sendTime,
       touchTitle,
@@ -1587,30 +1701,20 @@ function RecallCadenceDetail({ screen, goTo, notify, context }: DetailPageProps)
       screen={screen}
       goTo={goTo}
       decision={workflowBlocked ? `为什么${customerName}的第 ${touchNumber} 次消息已经锁住？` : sentRecord ? `查看${customerName}已发送的第 ${touchNumber} 次消息：“${touchTitle}”` : `只编辑${customerName}的第 ${touchNumber} 次消息：“${touchTitle}”`}
-      decisionHint={workflowBlocked ? blockedDecisionHint : sentRecord ? "这是一条历史发送记录，只能查看，不能改写内容、附件和发送时间。" : "这里不会启用或修改整套计划。只核对这一条的文字、附件、时间和原因，然后提交店长审核。"}
-      checks={readOnly ? ["确认客户和第几次联系", "查看原消息和停止原因", "锁定记录不修改、不重新提交"] : ["确认客户和第几次联系", "核对完整消息、附件和发送时间", "确认停止条件后只提交这一条"]}
+      decisionHint={workflowBlocked ? blockedDecisionHint : sentRecord ? "这是一条历史发送记录，只能查看，不能改写内容、附件和发送时间。" : "这里只修改当前这一条。保存后会放回客户计划，状态变为“已安排”，到设定时间自动发送。"}
+      checks={readOnly ? ["确认客户和第几次联系", "查看原消息和停止原因", "锁定记录不修改、不重新保存"] : ["确认客户和第几次联系", "核对完整消息、附件和发送时间", "保存并放回客户计划"]}
       actions={(
-        <>
-          <Button
-            disabled={readOnly || !canSubmit}
-            onClick={() => {
-              recordMessage("draft");
-              notify(`第 ${touchNumber} 次消息已保存为草稿，不会发送`);
-            }}
-          >
-            {workflowBlocked ? "自动计划已锁住，不能保存草稿" : sentRecord ? "已发送记录不能保存为草稿" : canSubmit ? "保存这一条草稿" : "先补全消息、附件、时间和发送原因"}
-          </Button>
-          <Button
-            disabled={readOnly || !canSubmit}
-            kind="primary"
-            onClick={() => {
-              recordMessage("submitted");
-              notify(`第 ${touchNumber} 次消息已提交店长审核；返回主页面后会显示“等审核”`);
-            }}
-          >
-            {workflowBlocked ? "自动计划已锁住，不能提交" : sentRecord ? "已发送记录不能重新提交" : canSubmit ? "只提交这一条给店长审核" : "先补全消息、附件、时间和发送原因"}
-          </Button>
-        </>
+        <Button
+          disabled={readOnly || !canSubmit}
+          kind="primary"
+          onClick={() => {
+            recordMessage();
+            notify(`第 ${touchNumber} 次消息已保存到${customerName}的后续计划`);
+            goTo(screen.parent ?? "recall-customer-detail");
+          }}
+        >
+          {workflowBlocked ? "自动计划已锁住，不能保存" : sentRecord ? "已发送记录不能修改" : canSubmit ? "保存并放回客户计划" : "先补全消息、附件、时间和发送原因"}
+        </Button>
       )}
     >
       <div style={ui.stack}>
@@ -1639,147 +1743,6 @@ function RecallCadenceDetail({ screen, goTo, notify, context }: DetailPageProps)
           <span>为什么现在发这一条</span>
           <textarea disabled={readOnly} onChange={(event) => setSendReason(event.target.value)} style={ui.textarea} value={sendReason} />
         </label>
-        <div style={ui.warning}>
-          <b style={ui.title}>整套计划不会在这里改变</b>
-          <p style={ui.copy}>无论这条是否提交，客户回复、明确拒绝、已成交或要求不要再联系时，后面的自动消息都会立即停止。</p>
-        </div>
-      </div>
-    </DetailShell>
-  );
-}
-
-function RecallReviewDetail({ screen, goTo, notify, context }: DetailPageProps) {
-  const name = context?.customerName ?? "赵女士";
-  const messageType = context?.activityName ?? "第 4 次 · 免费量房体验券";
-  const plannedTime = context?.plannedTime ?? "今天 18:00";
-  const isCoupon = messageType.includes("量房");
-  const isActivity = messageType.includes("活动");
-  const [verified, setVerified] = useState(context?.verificationNeeded === "no");
-  const initialReviewMessage = context?.currentMessage || (isCoupon ? `${name}，之前您提到还没确定房屋尺寸。这里有一张免费上门量房体验券，领取后 7 天内可以预约，我们会给您一份初步平面方案。需要的话回复“量房”，我帮您看可约时间。` : `${name}，根据您之前问过的问题，我整理了一份${isActivity ? "本店活动说明" : "简单说明"}。您需要时可以先看看，不方便回复也没关系。`);
-  const [message, setMessage] = useState(initialReviewMessage);
-  const [permanentStop, setPermanentStop] = useState(false);
-  const [stopReason, setStopReason] = useState("");
-  const [reviewStatus, setReviewStatus] = useState(context?.currentStatus ?? "active");
-  const [storedStopReason, setStoredStopReason] = useState("");
-  const blockedByStop = reviewStatus === "stopped";
-  const canSaveMessage = message.trim().length >= 16;
-  const checks = [
-    ["客户地址", "漳州龙文区，在服务范围内"],
-    [isCoupon ? "量房券有效期" : isActivity ? "活动有效期" : "资料有效期", isCoupon ? "领取后 7 天内预约" : isActivity ? "需要重新核对活动截止日期" : "门店资料在有效期内"],
-    [isCoupon ? "今天剩余名额" : "内容与客户匹配", isCoupon ? "核对后显示龙文区还可约 3 户" : "与客户当前装修阶段相符"],
-    ["承诺范围", isCoupon ? "只承诺量房和初步平面方案" : "没有保证价格或结果"],
-    ["发送频率", "距上次联系已 3 天"],
-    ["停止规则", "客户拒绝或回复后停止自动发送"],
-  ];
-
-  function recordReviewDecision(action: "approved" | "draft" | "skipped" | "stopped" | "verified" | "editing", reason = "") {
-    emitDetailEvent("demo-review-decision", {
-      action,
-      customerName: name,
-      message,
-      messageChanged: message !== initialReviewMessage ? "yes" : "no",
-      messageType,
-      plannedTime,
-      reason,
-    });
-  }
-
-  useEffect(() => {
-    function receiveStatus(event: Event) {
-      const detail = (event as CustomEvent<Record<string, string>>).detail;
-      if (detail.customerName !== name || detail.messageType !== messageType) return;
-      setReviewStatus(detail.status || "active");
-      setStoredStopReason(detail.reason || "");
-      if (detail.status === "stopped") {
-        setVerified(false);
-        setPermanentStop(false);
-      }
-    }
-    function requestStatus() {
-      emitDetailEvent("demo-review-status-request", {
-        customerName: name,
-        messageType,
-      });
-    }
-    window.addEventListener("demo-review-status-response", receiveStatus);
-    window.addEventListener("demo-workflow-status-changed", requestStatus);
-    const requestTimer = window.setTimeout(requestStatus, 0);
-    return () => {
-      window.clearTimeout(requestTimer);
-      window.removeEventListener("demo-review-status-response", receiveStatus);
-      window.removeEventListener("demo-workflow-status-changed", requestStatus);
-    };
-  }, [messageType, name]);
-
-  return (
-    <DetailShell
-      screen={screen}
-      goTo={goTo}
-      decision={blockedByStop ? `为什么给${name}的“${messageType}”已经被锁住？` : `这条给${name}的“${messageType}”，是批准、修改、跳过，还是永久停止？`}
-      decisionHint={blockedByStop ? "上游客户、活动或量房券已经停止。先回到对应设置处理，不能从这页绕过停止状态。" : "先核对地址、有效期、剩余名额和承诺。全通过才能批准；“跳过本条”和“以后不再自动联系”不是一回事。"}
-      checks={["读一遍客户将收到的原话", "看 6 项依据是否都已核对", "在批准、修改、跳过本条、永久停止中选一个"]}
-      actions={(
-        <>
-          <Button
-            disabled={!verified || !canSaveMessage || blockedByStop}
-            kind="primary"
-            onClick={() => {
-              notify(`批准决定已记录，将在${plannedTime}按计划给${name}发送；返回主页面可查看状态`);
-              recordReviewDecision("approved");
-            }}
-          >
-            {blockedByStop ? "这条消息已锁住，不能批准" : !canSaveMessage ? "消息文字不完整，暂不能批准" : verified ? `批准，按${plannedTime}发送` : "还有项目没核对，暂不能批准"}
-          </Button>
-          <Button
-            disabled={!canSaveMessage || blockedByStop}
-            onClick={() => {
-              notify("修改已保存，消息留在待审核列表，不会立即发送");
-              recordReviewDecision("draft");
-            }}
-          >
-            {blockedByStop ? "已锁住，不能保存新草稿" : canSaveMessage ? "保存修改，稍后再审核" : "先补全消息文字"}
-          </Button>
-          <Button
-            disabled={blockedByStop}
-            onClick={() => {
-              notify(`已跳过给${name}的这一条消息；以后的合适跟进仍保留`);
-              recordReviewDecision("skipped");
-            }}
-          >
-            只跳过这一条
-          </Button>
-          <Button disabled={blockedByStop} kind="danger" onClick={() => setPermanentStop(true)}>{blockedByStop ? "这条消息已锁住" : "以后不再自动联系"}</Button>
-        </>
-      )}
-    >
-      <div style={ui.stack}>
-        {blockedByStop && <div style={ui.warning}><b style={ui.title}>这条消息已经锁住，不会发送</b><p style={ui.copy}>停止原因：{storedStopReason || "上游流程已经停止"}。这里保留原消息供查看，但批准、修改和跳过按钮都已锁住。</p></div>}
-        <div style={ui.explanation}>
-          <b style={ui.title}>{name}｜{messageType}｜原计划 {plannedTime}</b>
-          <p style={ui.copy}>客户情况：暂缓装修 · 3 天未回复 · 地址在漳州龙文区 · 跟进优先分 58 / 100。</p>
-        </div>
-        <label style={ui.field}>
-          <span><b>客户将收到的完整消息</b></span>
-          <textarea disabled={blockedByStop} onChange={(event) => { if (verified) recordReviewDecision("editing"); setMessage(event.target.value); setVerified(false); }} style={{ ...ui.textarea, minHeight: 130 }} value={message} />
-        </label>
-        <div style={{ ...ui.rows, gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-          {checks.map(([label, evidence], index) => {
-            const unresolved = !verified && (isCoupon ? index === 2 : isActivity ? index === 1 : index === 2);
-            return (
-            <div key={label} style={{ ...ui.row, gridTemplateColumns: "minmax(70px, .6fr) minmax(0, 1.4fr) auto" }}>
-              <b>{label}</b>
-              <span>{evidence}</span>
-              <Pill tone={unresolved ? "warning" : "positive"}>{unresolved ? "还没核对" : "通过"}</Pill>
-            </div>
-            );
-          })}
-        </div>
-        {!verified && !blockedByStop && <div style={ui.warning}><b style={ui.title}>批准按钮已锁住</b><p style={ui.copy}>{isCoupon ? "先从门店每日接待表核对今天剩余量房名额。" : isActivity ? "先从活动说明核对截止日期和客户权益。" : "文字有修改，请重新核对内容是否适合这位客户、是否带来新的承诺。"}</p><Button disabled={!canSaveMessage} onClick={() => { setVerified(true); notify("演示：缺少的项目已核对通过，返回主页面也会显示已核对"); recordReviewDecision("verified"); }}>{canSaveMessage ? "演示：完成缺少的核对" : "先补全消息文字"}</Button></div>}
-        {permanentStop && <div style={ui.warning}><b style={ui.title}>永久停止需要写原因</b><p style={ui.copy}>这会取消后续全部自动消息，但保留客户记录。</p><label style={ui.field}><span>停止原因（必填）</span><input onChange={(event) => setStopReason(event.target.value)} placeholder="例如：客户明确要求不要再联系" style={ui.input} value={stopReason} /></label><div style={ui.actionRow}><Button onClick={() => { setPermanentStop(false); setStopReason(""); }}>取消</Button><Button disabled={stopReason.trim().length < 4} kind="danger" onClick={() => { const reason = stopReason.trim(); recordReviewDecision("stopped", reason); setReviewStatus("stopped"); setStoredStopReason(reason); setVerified(false); setPermanentStop(false); notify(`已永久停止给${name}自动发送；停止原因已记录，返回主页面后会显示已停止`); }}>填写原因后确认永久停止</Button></div></div>}
-        <div style={ui.warning}>
-          <b style={ui.title}>批准不是“现在立刻发”</b>
-          <p style={ui.copy}>点批准后会按原计划 {plannedTime} 发送；如果客户在发送前回复，系统会自动取消这一条。</p>
-        </div>
       </div>
     </DetailShell>
   );
@@ -1800,7 +1763,6 @@ const detailPages: Record<string, (props: DetailPageProps) => ReactNode> = {
   "recall-activity-detail": RecallActivityDetail,
   "recall-customer-detail": RecallCustomerDetail,
   "recall-cadence-detail": RecallCadenceDetail,
-  "recall-review-detail": RecallReviewDetail,
 };
 
 export function PrototypeDetailContent(props: PrototypeDetailContentProps) {

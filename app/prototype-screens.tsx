@@ -40,9 +40,8 @@ type ActivityUpdate = {
   period?: string;
   status: "可使用" | "待开始" | "已停用";
 };
-type PluginStatus = "使用中" | "已暂停" | "未启用" | "还差 2 项设置";
+type PluginStatus = "使用中" | "已暂停" | "未启用";
 type PluginDraft = {
-  activity: string;
   customerMessage: string;
   priceTable: string;
   rulesChecked: boolean[];
@@ -62,22 +61,16 @@ const workflowMemory = {
   championDecisions: {} as Record<string, "included" | "excluded">,
   championLineDecisions: {} as Record<string, Record<string, ChampionLineDecision>>,
   faqDetails: {} as Record<string, FaqUpdate>,
-  approvedReviews: new Set<string>(),
-  verifiedReviews: new Set<string>(),
-  skippedReviews: new Set<string>(),
-  stoppedReviews: new Set<string>(),
-  reviewStopReasons: {} as Record<string, string>,
-  reviewMessages: {} as Record<string, string>,
   cadenceUpdates: {} as Record<string, CadenceUpdate>,
   activityUpdates: {} as Record<string, ActivityUpdate>,
   stoppedCustomers: new Set<string>(),
-  assignedCustomers: {} as Record<string, string>,
   pluginStates: {} as Record<string, PluginStatus>,
   pluginDrafts: {} as Record<string, PluginDraft>,
   pluginDraftNeedsApply: new Set<string>(),
   salesConversationStatuses: {} as Record<string, string>,
   salesReviewNotes: {} as Record<string, string>,
   couponStatus: "使用中" as "使用中" | "已暂停",
+  posterStatus: "使用中" as "使用中" | "已保存并使用",
   spokespersonReady: false,
 };
 
@@ -118,10 +111,6 @@ function championLineCounts(conversationId: string) {
   };
 }
 
-function reviewKey(customerName: string, messageType: string) {
-  return `${customerName}::${messageType}`;
-}
-
 function stoppedActivityForMessage(messageType: string) {
   return Object.entries(workflowMemory.activityUpdates).find(([activityName, update]) => {
     if (update.status !== "已停用") return false;
@@ -139,25 +128,35 @@ function cadenceSourceLockReason(messageTitle: string) {
   return stoppedActivity ? `“${stoppedActivity}”已停用` : "";
 }
 
-function reviewWorkflowStopReason(customerName: string, messageType: string) {
-  const key = reviewKey(customerName, messageType);
-  if (workflowMemory.stoppedReviews.has(key)) {
-    return workflowMemory.reviewStopReasons[key] || "客户已永久停止自动联系";
-  }
-  if (customerFollowupIsStopped(customerName)) return "客户已在跟进名单中停止自动联系";
-  if (workflowMemory.assignedCustomers[customerName]) {
-    return `客户已交给销售小陈人工查看（${workflowMemory.assignedCustomers[customerName]}），自动计划已暂停`;
-  }
-  if (workflowMemory.couponStatus === "已暂停" && messageType.includes("量房") && messageType.includes("券")) {
-    return "量房券功能已暂停，不能继续发送量房券";
-  }
-  const stoppedActivity = stoppedActivityForMessage(messageType);
-  return stoppedActivity ? `“${stoppedActivity}”已停用，不能继续发送相关内容` : "";
-}
-
 function publishWorkflowChange() {
   workflowSubscribers.forEach((subscriber) => subscriber());
   if (typeof window !== "undefined") window.dispatchEvent(new Event("demo-workflow-status-changed"));
+}
+
+export function resetWorkflowDemo() {
+  workflowMemory.labelWatched.clear();
+  workflowMemory.labelDecisions = {};
+  workflowMemory.labelReasons = {};
+  workflowMemory.topWatched.clear();
+  workflowMemory.topSelected = "";
+  workflowMemory.trainingUploads = [];
+  workflowMemory.trainingDocs = {};
+  workflowMemory.removedTrainingDocs.clear();
+  workflowMemory.championDecisions = {};
+  workflowMemory.championLineDecisions = {};
+  workflowMemory.faqDetails = {};
+  workflowMemory.cadenceUpdates = {};
+  workflowMemory.activityUpdates = {};
+  workflowMemory.stoppedCustomers.clear();
+  workflowMemory.pluginStates = {};
+  workflowMemory.pluginDrafts = {};
+  workflowMemory.pluginDraftNeedsApply.clear();
+  workflowMemory.salesConversationStatuses = {};
+  workflowMemory.salesReviewNotes = {};
+  workflowMemory.couponStatus = "使用中";
+  workflowMemory.posterStatus = "使用中";
+  workflowMemory.spokespersonReady = false;
+  publishWorkflowChange();
 }
 
 function dispatchSalesConversationStatus(customerName: string) {
@@ -178,12 +177,28 @@ function customerFollowupIsStopped(customerName: string) {
 
 function dispatchCustomerFollowupStatus(customerName: string) {
   const stopped = customerFollowupIsStopped(customerName);
-  const due = workflowMemory.assignedCustomers[customerName] || "";
   window.dispatchEvent(new CustomEvent("demo-customer-followup-status-response", {
     detail: {
       customerName,
-      due,
-      status: stopped ? "stopped" : due ? "assigned" : "active",
+      status: stopped ? "stopped" : "active",
+    },
+  }));
+}
+
+function cadenceUpdateKey(customerName: string, touchNumber: string) {
+  return `${customerName}::${touchNumber}`;
+}
+
+function dispatchCadenceUpdate(customerName: string, touchNumber: string) {
+  const update = workflowMemory.cadenceUpdates[cadenceUpdateKey(customerName, touchNumber)];
+  if (!update) return;
+  window.dispatchEvent(new CustomEvent("demo-cadence-message-status-response", {
+    detail: {
+      ...update,
+      customerName,
+      touchNumber,
+      touchTime: update.interval,
+      touchTitle: update.title,
     },
   }));
 }
@@ -357,10 +372,6 @@ function ensureWorkflowEventBridge() {
       const action = detailString(detail, "action");
       if (action === "stopped") {
         workflowMemory.stoppedCustomers.add(customerName);
-        delete workflowMemory.assignedCustomers[customerName];
-      }
-      if (action === "assigned" && !customerFollowupIsStopped(customerName)) {
-        workflowMemory.assignedCustomers[customerName] = detailString(detail, "due") || "今天 17:00 前";
       }
       dispatchCustomerFollowupStatus(customerName);
       publishWorkflowChange();
@@ -424,102 +435,34 @@ function ensureWorkflowEventBridge() {
   );
 
   listenWorkflowEvents(
-    ["demo-review-decision", "demo-review-updated", "demo-review-approved", "prototype:review-updated"],
-    (event) => {
-      const detail = detailRecord(event);
-      const customerName = detailString(detail, "customerName", "name");
-      const messageType = detailString(detail, "messageType", "activityName", "title");
-      const action = detailString(detail, "action", "status");
-      if (!customerName || !messageType) return;
-      const key = reviewKey(customerName, messageType);
-      const workflowStopReason = reviewWorkflowStopReason(customerName, messageType);
-      if (workflowStopReason && action !== "stopped") {
-        window.dispatchEvent(new CustomEvent("demo-review-status-response", {
-          detail: {
-            customerName,
-            messageType,
-            reason: workflowStopReason,
-            status: "stopped",
-          },
-        }));
-        publishWorkflowChange();
-        return;
-      }
-      const message = detailString(detail, "message", "content");
-      const verifiedChangedMessage = action === "verified" && detailString(detail, "messageChanged") === "yes";
-      if (message && action !== "editing" && (action !== "verified" || verifiedChangedMessage)) workflowMemory.reviewMessages[key] = message;
-      if (action === "editing") {
-        workflowMemory.approvedReviews.delete(key);
-        workflowMemory.verifiedReviews.delete(key);
-      }
-      if (action.includes("核对") || action === "verified") workflowMemory.verifiedReviews.add(key);
-      if (action.includes("批准") || action === "approved") {
-        if (workflowMemory.stoppedReviews.has(key)) {
-          publishWorkflowChange();
-          return;
-        }
-        workflowMemory.verifiedReviews.add(key);
-        workflowMemory.approvedReviews.add(key);
-        workflowMemory.skippedReviews.delete(key);
-      }
-      if (action === "draft") {
-        workflowMemory.approvedReviews.delete(key);
-        workflowMemory.skippedReviews.delete(key);
-        workflowMemory.verifiedReviews.delete(key);
-      }
-      if (action.includes("跳过") || action === "skipped") {
-        workflowMemory.skippedReviews.add(key);
-        workflowMemory.approvedReviews.delete(key);
-      }
-      if (action.includes("停止") || action === "stopped") {
-        workflowMemory.stoppedReviews.add(key);
-        workflowMemory.reviewStopReasons[key] = detailString(detail, "reason") || "客户明确要求停止自动联系";
-        workflowMemory.stoppedCustomers.add(customerName);
-        delete workflowMemory.assignedCustomers[customerName];
-        workflowMemory.approvedReviews.delete(key);
-        workflowMemory.skippedReviews.delete(key);
-        workflowMemory.verifiedReviews.delete(key);
-        dispatchCustomerFollowupStatus(customerName);
-      }
-      publishWorkflowChange();
-    },
-  );
-
-  listenWorkflowEvents(
-    ["demo-review-status-request"],
-    (event) => {
-      const detail = detailRecord(event);
-      const customerName = detailString(detail, "customerName", "name");
-      const messageType = detailString(detail, "messageType", "activityName", "title");
-      if (!customerName || !messageType) return;
-      const reason = reviewWorkflowStopReason(customerName, messageType);
-      window.dispatchEvent(new CustomEvent("demo-review-status-response", {
-        detail: {
-          customerName,
-          messageType,
-          reason,
-          status: reason ? "stopped" : "active",
-        },
-      }));
-    },
-  );
-
-  listenWorkflowEvents(
     ["demo-cadence-message-saved", "demo-cadence-updated", "demo-followup-message-saved", "demo-cadence-saved", "prototype:cadence-updated"],
     (event) => {
       const detail = detailRecord(event);
+      const customerName = detailString(detail, "customerName", "name");
       const touchNumber = detailString(detail, "touchNumber", "step", "number");
-      if (!touchNumber) return;
-      workflowMemory.cadenceUpdates[touchNumber] = {
+      if (!customerName || !touchNumber) return;
+      workflowMemory.cadenceUpdates[cadenceUpdateKey(customerName, touchNumber)] = {
         attachment: detailString(detail, "attachment"),
-        customerName: detailString(detail, "customerName", "name"),
+        customerName,
         interval: detailString(detail, "interval", "touchTime"),
         message: detailString(detail, "message", "content"),
         sendReason: detailString(detail, "sendReason", "reason"),
-        status: detailString(detail, "status") || (detailString(detail, "action") === "submitted" ? "等店长审核" : "草稿"),
+        status: detailString(detail, "status") || "已安排",
         title: detailString(detail, "title", "touchTitle"),
       };
+      dispatchCadenceUpdate(customerName, touchNumber);
       publishWorkflowChange();
+    },
+  );
+
+  listenWorkflowEvents(
+    ["demo-cadence-message-status-request"],
+    (event) => {
+      const detail = detailRecord(event);
+      const customerName = detailString(detail, "customerName", "name");
+      const touchNumber = detailString(detail, "touchNumber", "step", "number");
+      if (!customerName || !touchNumber) return;
+      dispatchCadenceUpdate(customerName, touchNumber);
     },
   );
 }
@@ -1224,7 +1167,8 @@ function TrainingScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) 
 
 function ChampionScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
   useWorkflowBridge();
-  const samples = [
+  const [uploadedSamples, setUploadedSamples] = useState<string[][]>([]);
+  const baseSamples = [
     ["CASE-001", "林女士｜118㎡原木风", "到店", "先确认风格，再用活动名额完成邀约"],
     ["CASE-002", "陈先生｜预算 15 万", "到店", "分档解释价格，邀请带户型到店"],
     ["CASE-003", "周女士｜关注环保", "到店", "使用 ENF 板材配置与检测报告"],
@@ -1236,14 +1180,15 @@ function ChampionScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) 
     ["CASE-009", "李女士｜板材对比", "到店", "说明品牌差异，不贬低别家"],
     ["CASE-010", "郭先生｜周末有空", "到店", "核实剩余接待名额后确认时间"],
   ];
-  const decisions = samples.map((_, index) => workflowMemory.championDecisions[`示例 ${index + 1}`]);
+  const samples = [...uploadedSamples, ...baseSamples];
+  const decisions = samples.map((row) => workflowMemory.championDecisions[row[0]]);
   const excludedCount = decisions.filter((decision) => decision === "excluded").length;
   const confirmedCount = decisions.filter((decision) => decision === "included").length;
   const decidedCount = confirmedCount + excludedCount;
   const allDecided = decidedCount === samples.length;
   const includedLineCounts = samples.reduce(
-    (totals, row, index) => {
-      if (workflowMemory.championDecisions[`示例 ${index + 1}`] !== "included") return totals;
+    (totals, row) => {
+      if (workflowMemory.championDecisions[row[0]] !== "included") return totals;
       const counts = championLineCounts(row[0]);
       return {
         borrowable: totals.borrowable + counts.borrowable,
@@ -1263,14 +1208,22 @@ function ChampionScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) 
             还需检查 {samples.length - decidedCount} 段
           </span>
         </div>
-        <FileUpload accept=".csv,.xlsx,.json" label="＋ 放入企微聊天" onUpload={(name) => notify(`${name} 已放入，客户隐私正在自动遮住`)} />
+        <FileUpload
+          accept=".csv,.xlsx,.json"
+          label="＋ 放入企微聊天"
+          onUpload={(name) => {
+            const nextId = `UPLOAD-${String(uploadedSamples.length + 1).padStart(3, "0")}`;
+            setUploadedSamples((current) => [[nextId, `${name}｜刚上传`, "到店（随文件读出）", "客户隐私已自动遮住，等待逐句检查"], ...current]);
+            notify(`${name} 已放入；客户隐私已遮挡，实际结果已从文件读出，新记录在列表第一条`);
+          }}
+        />
         <Button disabled={!allDecided || confirmedCount === 0} kind="primary" onClick={() => notify(`已确认学习 ${includedLineCounts.borrowable} 句销售回复；${includedLineCounts.notBorrowable} 句不参与学习`)}>{!allDecided ? `还要检查 ${samples.length - decidedCount} 段` : confirmedCount === 0 ? "没有可学习的聊天，请重新检查" : `确认学习 ${includedLineCounts.borrowable} 句回复`}</Button>
       </div>
       <p className="champion-default-note">打开聊天后，销售回复默认“可借鉴”；只需把不妥的句子改为“不建议借鉴”。客户原话不会作为销售话术。</p>
       <div className="sample-table">
         <div><b>编号</b><b>客户情况</b><b>实际结果</b><b>标注结果</b><b>操作</b></div>
-        {samples.map((row, index) => {
-          const sampleName = `示例 ${index + 1}`;
+        {samples.map((row) => {
+          const sampleName = row[0];
           const decision = workflowMemory.championDecisions[sampleName];
           const lineCounts = championLineCounts(row[0]);
           const lineDecisions = workflowMemory.championLineDecisions[row[0]] ?? {};
@@ -1278,7 +1231,7 @@ function ChampionScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) 
             <div key={row[0]}>
               <span>{sampleName}</span>
               <span>{row[1]}</span>
-              <Pill tone={row[2] === "到店" ? "positive" : "neutral"}>{row[2]}</Pill>
+              <Pill tone={row[2].startsWith("到店") ? "positive" : "neutral"}>{row[2]}</Pill>
               <span>
                 {decision === "included"
                   ? `${lineCounts.borrowable} 句可借鉴 · ${lineCounts.notBorrowable} 句不建议`
@@ -1311,7 +1264,7 @@ function SimulationScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">
   const [scores, setScores] = useState<Record<string, number>>({});
   const [rewrite, setRewrite] = useState("");
   const allScored = criteria.every((item) => Boolean(scores[item]));
-  const hasLowScore = criteria.some((item) => (scores[item] ?? 5) <= 3);
+  const hasLowScore = criteria.some((item) => (scores[item] ?? 5) < 3);
   const canSave = allScored && (!hasLowScore || rewrite.trim().length >= 12);
   const finished = current >= 100;
   return (
@@ -1324,10 +1277,10 @@ function SimulationScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">
           {criteria.map((item) => <label key={item}><span>{item}</span><div>{[1,2,3,4,5].map((n) => <button aria-label={`${item} ${n} 分`} className={n === scores[item] ? "active" : ""} disabled={finished} key={n} onClick={() => setScores((currentScores) => ({ ...currentScores, [item]: n }))}>{n}</button>)}</div></label>)}
         </div>
         <label className="rewrite-answer">
-          <span>{hasLowScore ? "有 3 分或以下：请写出正确回答（必填）" : "如果有低分，请写出你希望机器人怎么说"}</span>
+          <span>{hasLowScore ? "有 2 分或以下：请写出正确回答（必填）" : "如果有低分，请写出你希望机器人怎么说"}</span>
           <textarea aria-label="正确回答" disabled={finished} onChange={(event) => setRewrite(event.target.value)} placeholder="例如：活动还在。周六下午龙文店还有 2 个接待名额……" value={rewrite} />
         </label>
-        {!canSave && !finished && <p className="form-hint">先给四项都打分；如有 3 分或以下，还要写出正确回答。</p>}
+        {!canSave && !finished && <p className="form-hint">先给四项都打分；如有 2 分或以下，还要写出正确回答。</p>}
         <div className="button-row"><Button onClick={() => goTo("sales-simulation-detail", { exerciseNumber: String(Math.min(100, current + 1)) })}>查看评分理由和正确写法</Button><Button disabled={!canSave || finished} onClick={() => notify(`当前进度已保存，下次从第 ${current + 1} 题继续`)}>保存，稍后继续</Button><Button disabled={!canSave || finished} kind="primary" onClick={() => { setCurrent((value) => Math.min(100, value + 1)); setScores({}); setRewrite(""); notify(current === 99 ? "第 100 题已保存，练习全部完成" : "四项评分和正确回答已保存，进入下一题"); }}>保存并下一题</Button></div>
       </Card>
       <Card title="练习进度" caption="可随时保存，分几次完成" className="simulation-progress">
@@ -1349,12 +1302,37 @@ function PromptScreen({ notify }: Pick<ScreenProps, "notify">) {
 2. 价格、活动名额和门店地址只有在已确认资料里找到时才能说。
 3. 报价按“基础 / 品质 / 高配”三档解释，不能编造折扣。
 4. 客户明确拒绝、投诉或提出复杂施工问题时，立即交给真人销售。
-5. 表达专业、简洁、不压迫；每次只问一个关键问题。`;
+5. 表达专业、简洁、不压迫；每次只问一个关键问题。
+6. 只收集服务所需信息，不询问与装修无关的客户隐私。`;
   const [appliedText, setAppliedText] = useState(initialText);
   const [text, setText] = useState(initialText);
   const hasEnoughContent = text.trim().length >= 40;
+  const checks = [
+    {
+      label: "价格只能使用已确认资料",
+      passed: /价格|报价/.test(text) && /资料|价格表/.test(text) && /才能|不能|不得|只/.test(text),
+    },
+    {
+      label: "活动名额只能使用门店资料",
+      passed: /活动/.test(text) && /名额/.test(text) && /资料|接待表/.test(text),
+    },
+    {
+      label: "不会强迫客户到店",
+      passed: /不压迫|不强迫|尊重客户|客户自愿/.test(text),
+    },
+    {
+      label: "写清楚什么时候交给真人",
+      passed: /真人|人工/.test(text) && /拒绝|投诉|复杂|不确定/.test(text),
+    },
+    {
+      label: "不会多收集客户隐私",
+      passed: /隐私/.test(text) && /不询问|不收集|只收集必要|服务所需/.test(text),
+    },
+  ];
+  const missingChecks = checks.filter((item) => !item.passed);
+  const allChecksPassed = missingChecks.length === 0;
   const hasChanges = text !== appliedText;
-  const canSubmit = hasEnoughContent && hasChanges;
+  const canSubmit = hasEnoughContent && allChecksPassed && hasChanges;
   return (
     <div className="prompt-layout">
       <Card title="直接修改机器人说话规则" caption="在输入框里改好后，直接提交；不需要先加规则或试聊" className="prompt-editor">
@@ -1369,14 +1347,14 @@ function PromptScreen({ notify }: Pick<ScreenProps, "notify">) {
               notify("规则已提交；将用于之后的新客户回复");
             }}
           >
-            {!hasEnoughContent ? "规则至少保留 40 个字" : hasChanges ? "提交并应用" : "当前规则已提交"}
+            {!hasEnoughContent ? "规则至少保留 40 个字" : !allChecksPassed ? `先补齐 ${missingChecks.length} 项安全规则` : hasChanges ? "提交并应用" : "当前规则已提交"}
           </Button>
         </div>
         {!hasEnoughContent && <p className="form-hint">规则不能为空。至少写清“能做什么、不能承诺什么、什么时候交给真人”。</p>}
       </Card>
-      <Card title="自动检查" caption="边修改边检查；内容不足时才会阻止提交" className="rule-checks">
-        {["价格只使用最新价格表", "活动名额只使用门店接待表", "不会强迫客户到店", "交给真人销售的条件完整", "没有多收集客户隐私"].map((item) => <div key={item}><span>{hasEnoughContent ? "✓" : "—"}</span>{item}</div>)}
-        <div className="rule-warning"><b>{hasEnoughContent ? "1 条提醒" : "规则内容不足"}</b><p>{hasEnoughContent ? "客户只想了解风格时，不要立即追问预算。" : "当前内容不足，不能提交。"}</p></div>
+      <Card title="提交前检查" caption="缺少任何一项都会直接指出，不会只按字数判定" className="rule-checks">
+        {checks.map((item) => <div key={item.label}><span>{item.passed ? "✓" : "—"}</span>{item.label}</div>)}
+        <div className="rule-warning"><b>{allChecksPassed ? "检查通过" : `还缺 ${missingChecks.length} 项`}</b><p>{allChecksPassed ? "可以直接提交并应用。" : `请在左侧补充：${missingChecks.map((item) => item.label).join("、")}。`}</p></div>
       </Card>
     </div>
   );
@@ -1482,7 +1460,7 @@ function FaqScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
 
 const plugins = [
   ["1", "户型图 + 风格方案", "客户发送户型图与风格后，自动返回同户型案例与初步布局", "使用中", "1,284"],
-  ["2", "自动报价详细方案", "识别面积与户型，使用门店价格表生成三档报价明细", "还差 2 项设置", "628"],
+  ["2", "自动报价详细方案", "识别面积与户型，使用门店价格表生成三档报价明细", "未启用", "628"],
   ["3", "免费上门量房", "收集预算与地址，确认服务范围后预约免费量房和方案", "使用中", "416"],
   ["4", "风格选择题", "信息不足时发送效果图选择题，帮助客户说清风格偏好", "未启用", "—"],
 ];
@@ -1495,15 +1473,23 @@ function pluginStatusLabel(status: string, hasUnappliedDraft: boolean) {
   return `${status} · 草稿已保存`;
 }
 
-function PluginCenterScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
+function PluginCenterScreen({ notify }: Pick<ScreenProps, "notify">) {
   useWorkflowBridge();
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [configIndex, setConfigIndex] = useState<number | null>(null);
   const customerPreviews = [
     "客户上传户型图并选“原木风”后，会先收到同户型案例和一份初步布局说明；资料不够时只追问，不直接报价。",
     "客户给出面积和户型后，会看到基础、常用、升级三档估算，并清楚区分包含项和另计项；最终价格仍需门店核价。",
     "客户留下小区和预算后，会先核对服务区域与当天剩余名额，再给出 3 个可选量房时间；不会先保证一定有名额。",
     "客户说不清风格时，会收到 6 张效果图选择题；选完后机器人只总结偏好，不把效果图当成本店真实案例。",
   ];
+
+  function openSettings(index: number) {
+    setPreviewIndex(null);
+    setConfigIndex(index);
+    notify(`已在本页下方打开“${plugins[index][1]}”设置表`);
+  }
+
   return (
     <div className="stack">
       <div className="plugin-grid">
@@ -1516,7 +1502,15 @@ function PluginCenterScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify
             <div className="plugin-letter">{letter}</div><Pill tone={hasUnappliedDraft || currentStatus.includes("还差") ? "warning" : currentStatus === "使用中" ? "positive" : "neutral"}>{statusLabel}</Pill>
             <h3>{title}</h3><p>{description}</p>
             <div className="plugin-stats"><span>近 30 天自动处理</span><strong>{count} 次</strong></div>
-            <div className="button-row"><Button onClick={() => { setPreviewIndex((current) => current === index ? null : index); notify(previewIndex === index ? "客户预览已收起" : `已在下方打开“${title}”的客户预览`); }}>{previewIndex === index ? "收起客户预览" : "看客户会收到什么"}</Button><Button kind={index === 3 ? "primary" : "default"} onClick={() => goTo("sales-plugin-config", { pluginName: title })}>{index === 3 ? "设置并启用" : "设置此功能"}</Button></div>
+            <div className="button-row">
+              <Button onClick={() => { setConfigIndex(null); setPreviewIndex((current) => current === index ? null : index); notify(previewIndex === index ? "客户预览已收起" : `已在下方打开“${title}”的客户预览`); }}>{previewIndex === index ? "收起客户预览" : "看客户会收到什么"}</Button>
+              <Button
+                kind={configIndex === index || index === 3 ? "primary" : "default"}
+                onClick={() => openSettings(index)}
+              >
+                {configIndex === index ? "设置表已打开" : index === 3 ? "设置并启用" : "设置此功能"}
+              </Button>
+            </div>
           </Card>
           );
         })}
@@ -1528,51 +1522,106 @@ function PluginCenterScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify
             <p>{customerPreviews[previewIndex]}</p>
             <span>演示预览 · 发送前仍按门店资料和安全规则检查</span>
           </div>
-          <div className="button-row"><Button kind="primary" onClick={() => goTo("sales-plugin-config", { pluginName: plugins[previewIndex][1] })}>这个预览可以，去设置</Button><Button onClick={() => setPreviewIndex(null)}>收起预览</Button></div>
+          <div className="button-row"><Button kind="primary" onClick={() => openSettings(previewIndex)}>这个预览可以，打开设置表</Button><Button onClick={() => setPreviewIndex(null)}>收起预览</Button></div>
         </Card>
+      )}
+      {configIndex !== null && (
+        <PluginConfigScreen
+          key={plugins[configIndex][1]}
+          notify={notify}
+          onClose={() => {
+            setConfigIndex(null);
+            notify("设置表已收起；已保存或已启用的内容会继续保留");
+          }}
+          pluginIndex={configIndex}
+        />
       )}
     </div>
   );
 }
 
-function PluginConfigScreen({ context, notify }: Pick<ScreenProps, "context" | "notify">) {
+function PluginConfigScreen({
+  notify,
+  onClose,
+  pluginIndex,
+}: {
+  notify: (message: string) => void;
+  onClose: () => void;
+  pluginIndex: number;
+}) {
   useWorkflowBridge();
-  const requestedIndex = Math.max(0, plugins.findIndex((row) => row[1] === context?.pluginName));
-  const [selected, setSelected] = useState(requestedIndex);
-  const safetyRules = [
-    "客户已经提供面积",
-    "客户已经提供户型",
-    "客户主动询问价格或服务",
-    "缺少任一信息时先追问，不直接报价或预约",
-  ];
-  const initialPluginName = plugins[requestedIndex][1];
+  const plugin = plugins[pluginIndex];
+  const setup = [
+    {
+      missingInfo: "缺少户型图或风格时：继续追问，不自动生成方案。",
+      needsPriceTable: false,
+      needsServiceRegion: false,
+      rules: ["客户已经发送户型图", "客户已经说明或选择喜欢的风格"],
+      tests: ["户型图和风格齐全：正确启动", "缺少户型图：继续追问", "风格还不明确：先发选择题", "资料互相矛盾：交给真人"],
+    },
+    {
+      missingInfo: "信息不全时：继续追问，不自动报价。",
+      needsPriceTable: true,
+      needsServiceRegion: false,
+      rules: ["客户已经提供面积", "客户已经提供户型", "客户主动询问价格"],
+      tests: ["资料齐全：正确报价", "缺少面积：继续追问", "价格表失效：停止报价", "客户要求最终价：交给真人"],
+    },
+    {
+      missingInfo: "地址或名额不清楚时：继续追问，不承诺上门时间。",
+      needsPriceTable: false,
+      needsServiceRegion: true,
+      rules: ["客户已经提供所在小区或地址", "地址位于门店服务范围", "当天仍有可预约时间"],
+      tests: ["地址和名额都符合：给出可约时间", "缺少地址：继续追问", "地址超出范围：说明服务范围", "当天没有名额：不承诺并交给真人"],
+    },
+    {
+      missingInfo: "客户偏好还不清楚时：继续让客户选择，不猜测风格。",
+      needsPriceTable: false,
+      needsServiceRegion: false,
+      rules: ["客户还没有说清喜欢的风格", "只总结客户选择，不把示例图当成本店案例"],
+      tests: ["偏好不清：发送选择题", "选择完成：总结风格偏好", "示例图被当作真实案例：已阻止", "客户已有明确风格：不重复发送"],
+    },
+  ][pluginIndex];
+  const safetyRules = setup.rules;
+  const initialPluginName = plugin[1];
   const initialDraft = workflowMemory.pluginDrafts[initialPluginName];
   const [rulesChecked, setRulesChecked] = useState<boolean[]>(initialDraft?.rulesChecked ?? safetyRules.map(() => true));
   const [testAttempted, setTestAttempted] = useState(false);
-  const initialStatus = workflowMemory.pluginStates[initialPluginName] ?? plugins[requestedIndex][3];
+  const initialStatus = workflowMemory.pluginStates[initialPluginName] ?? plugin[3];
   const [enabled, setEnabled] = useState(initialStatus === "使用中");
   const [draftDirty, setDraftDirty] = useState(workflowMemory.pluginDraftNeedsApply.has(initialPluginName));
+  const draftReady = useRef(false);
   const [storeName, setStoreName] = useState(initialDraft?.storeName ?? "漳州龙文店");
-  const [serviceRegion, setServiceRegion] = useState(initialDraft?.serviceRegion ?? "漳州龙文区、芗城区");
-  const [priceTable, setPriceTable] = useState(initialDraft?.priceTable ?? (requestedIndex === 1 ? "价格表 2026.07" : "不需要价格表"));
-  const [activity, setActivity] = useState(initialDraft?.activity ?? (requestedIndex === 2 ? "不使用活动" : "暑期焕新季"));
-  const [customerMessage, setCustomerMessage] = useState(initialDraft?.customerMessage ?? messageForPlugin(requestedIndex));
-  const plugin = plugins[selected];
+  const [serviceRegion, setServiceRegion] = useState(initialDraft?.serviceRegion ?? (setup.needsServiceRegion ? "漳州龙文区、芗城区" : "不适用"));
+  const [priceTable, setPriceTable] = useState(initialDraft?.priceTable ?? (setup.needsPriceTable ? "价格表 2026.07" : "不适用"));
+  const [customerMessage, setCustomerMessage] = useState(initialDraft?.customerMessage ?? messageForPlugin(pluginIndex));
   const allSafetyRulesOn = rulesChecked.every(Boolean);
-  const automaticQuote = selected === 1;
   const storeAndRegionMatch = (storeName.includes("漳州") && serviceRegion.includes("漳州"))
     || (storeName.includes("厦门") && serviceRegion.includes("厦门"));
   const testFailures = [
     !allSafetyRulesOn ? "有安全规则被关闭" : "",
     !storeName ? "还没有选择门店" : "",
-    !serviceRegion ? "还没有选择服务区域" : "",
-    storeName && serviceRegion && !storeAndRegionMatch ? "所选门店与服务区域不一致" : "",
-    !priceTable ? "还没有选择价格表" : "",
-    automaticQuote && priceTable === "不需要价格表" ? "自动报价必须使用一份有效价格表，不能选择“不需要价格表”" : "",
-    !activity ? "还没有选择是否使用活动" : "",
+    setup.needsServiceRegion && !serviceRegion ? "还没有选择服务区域" : "",
+    setup.needsServiceRegion && storeName && serviceRegion && !storeAndRegionMatch ? "所选门店与服务区域不一致" : "",
+    setup.needsPriceTable && !priceTable ? "还没有选择价格表" : "",
     customerMessage.trim().length < 20 ? "客户看到的说明太短，请写清楚会回答什么和什么时候交给真人" : "",
   ].filter(Boolean);
   const tested = testAttempted && testFailures.length === 0;
+
+  useEffect(() => {
+    if (!draftReady.current) {
+      draftReady.current = true;
+      return;
+    }
+    workflowMemory.pluginDrafts[plugin[1]] = {
+      customerMessage,
+      priceTable,
+      rulesChecked: [...rulesChecked],
+      serviceRegion,
+      storeName,
+    };
+    workflowMemory.pluginDraftNeedsApply.add(plugin[1]);
+    publishWorkflowChange();
+  }, [customerMessage, plugin, priceTable, rulesChecked, serviceRegion, storeName]);
 
   function resetTest() {
     setTestAttempted(false);
@@ -1587,67 +1636,35 @@ function PluginConfigScreen({ context, notify }: Pick<ScreenProps, "context" | "
         : plugins[index][2];
   }
 
-  function choosePlugin(index: number) {
-    const nextName = plugins[index][1];
-    const nextStatus = workflowMemory.pluginStates[nextName] ?? plugins[index][3];
-    const savedDraft = workflowMemory.pluginDrafts[nextName];
-    setSelected(index);
-    setRulesChecked(savedDraft?.rulesChecked ?? safetyRules.map(() => true));
-    setStoreName(savedDraft?.storeName ?? "漳州龙文店");
-    setServiceRegion(savedDraft?.serviceRegion ?? "漳州龙文区、芗城区");
-    setPriceTable(savedDraft?.priceTable ?? (index === 1 ? "价格表 2026.07" : "不需要价格表"));
-    setActivity(savedDraft?.activity ?? (index === 2 ? "不使用活动" : "暑期焕新季"));
-    setCustomerMessage(savedDraft?.customerMessage ?? messageForPlugin(index));
-    setEnabled(nextStatus === "使用中");
-    setDraftDirty(workflowMemory.pluginDraftNeedsApply.has(nextName));
-    setTestAttempted(false);
-  }
-
-  function saveCurrentDraft() {
-    workflowMemory.pluginDrafts[plugin[1]] = {
-      activity,
-      customerMessage,
-      priceTable,
-      rulesChecked: [...rulesChecked],
-      serviceRegion,
-      storeName,
-    };
-    workflowMemory.pluginDraftNeedsApply.add(plugin[1]);
-    setDraftDirty(true);
-    publishWorkflowChange();
-  }
-
   return (
-    <div className="plugin-config-layout">
-      <Card title="选择自动接待功能" className="plugin-picker">
-        {plugins.map((row,index) => { const currentStatus = workflowMemory.pluginStates[row[1]] ?? row[3]; const hasUnappliedDraft = workflowMemory.pluginDraftNeedsApply.has(row[1]); return <button className={selected === index ? "active" : ""} onClick={() => choosePlugin(index)} key={row[0]}><i>{row[0]}</i><span><b>{row[1]}</b><small>{pluginStatusLabel(currentStatus, hasUnappliedDraft)}</small></span></button>; })}
-      </Card>
-      <Card title={plugin[1]} caption="先保存草稿，再用 4 个示例试运行；试运行通过后才可以启用" className="config-form">
+      <Card
+        title={`设置：${plugin[1]}`}
+        caption="修改会自动保存为草稿；用 4 个示例试运行，通过后即可启用或更新"
+        className="config-form"
+        action={<Button onClick={onClose}>收起设置表</Button>}
+      >
         {draftDirty && <div className="rule-box"><b>这份草稿还没有应用</b><p>{enabled ? "真实客户仍使用上一版。先用 4 个示例试运行，通过后再点“确认结果后更新设置”。" : "这个功能目前没有使用这份草稿。先试运行，通过后才能启用。"}</p></div>}
         <fieldset className="condition-list">
-          <legend>什么情况下自动执行</legend>
+          <legend>什么时候可以启动</legend>
           {safetyRules.map((item, index) => <label className="toggle-line" key={item}><input checked={rulesChecked[index]} onChange={() => { setRulesChecked((current) => current.map((value, itemIndex) => itemIndex === index ? !value : value)); resetTest(); }} type="checkbox" />{item}</label>)}
         </fieldset>
+        <div className="rule-box"><b>信息不够时怎么办</b><p>{setup.missingInfo}</p></div>
         <div className="source-selects">
           <label><span>使用哪家门店</span><select value={storeName} onChange={(event) => { setStoreName(event.target.value); resetTest(); }}><option value="">请选择门店</option><option>漳州龙文店</option><option>厦门湖里店</option></select></label>
-          <label><span>服务哪些区域</span><select value={serviceRegion} onChange={(event) => { setServiceRegion(event.target.value); resetTest(); }}><option value="">请选择服务区域</option><option>漳州龙文区、芗城区</option><option>厦门湖里区、思明区</option></select></label>
-          <label><span>使用哪份价格表</span><select value={priceTable} onChange={(event) => { setPriceTable(event.target.value); resetTest(); }}><option value="">请选择价格表</option><option>价格表 2026.07</option><option>不需要价格表</option></select></label>
-          <label><span>使用哪个活动</span><select value={activity} onChange={(event) => { setActivity(event.target.value); resetTest(); }}><option value="">请选择活动或明确不使用</option><option>暑期焕新季</option><option>不使用活动</option></select></label>
+          {setup.needsServiceRegion && <label><span>服务哪些区域</span><select value={serviceRegion} onChange={(event) => { setServiceRegion(event.target.value); resetTest(); }}><option value="">请选择服务区域</option><option>漳州龙文区、芗城区</option><option>厦门湖里区、思明区</option></select></label>}
+          {setup.needsPriceTable && <label><span>使用哪份价格表</span><select value={priceTable} onChange={(event) => { setPriceTable(event.target.value); resetTest(); }}><option value="">请选择价格表</option><option>价格表 2026.07</option></select></label>}
         </div>
         <label><span>客户会看到什么</span><textarea onChange={(event) => { setCustomerMessage(event.target.value); resetTest(); }} value={customerMessage} /></label>
-        <div className="flow-steps">{["读客户已说的信息", "核对门店资料", "生成回复草稿", "检查价格和区域", "不确定就交给真人"].map((item,index) => <div key={item}><i>{index + 1}</i><span>{item}</span></div>)}</div>
         {testAttempted && <div className={`test-results ${tested ? "" : "has-failure"}`}>{tested
-          ? ["资料齐全：正确启动", "缺少面积：先追问，没有报价", "活动过期：没有发送，交给真人", "地址超区：停止并说明服务范围"].map((item) => <span key={item}>✓ {item}</span>)
+          ? setup.tests.map((item) => <span key={item}>✓ {item}</span>)
           : testFailures.map((item) => <span key={item}>× {item}</span>)}
         </div>}
         <div className="button-row">
-          <Button onClick={() => { saveCurrentDraft(); notify(`${plugin[1]}草稿已保存；切换功能后再回来，内容仍会保留，不会影响真实客户`); }}>保存草稿</Button>
           <Button onClick={() => { setTestAttempted(true); notify(testFailures.length === 0 ? "4 个示例已试运行，结果全部符合预期" : `试运行未通过：${testFailures[0]}`); }}>用 4 个示例试运行</Button>
           {enabled && <Button kind="danger" onClick={() => { setEnabled(false); setDraftDirty(true); setTestAttempted(false); workflowMemory.pluginStates[plugin[1]] = "已暂停"; workflowMemory.pluginDraftNeedsApply.add(plugin[1]); publishWorkflowChange(); notify(`${plugin[1]}已暂停；新的客户会话不会再自动使用，重新启用前需再次试运行`); }}>暂停这个自动接待功能</Button>}
-          {(!enabled || draftDirty) && <Button disabled={!tested} kind="primary" onClick={() => { const wasLive = (workflowMemory.pluginStates[plugin[1]] ?? plugin[3]) === "使用中"; workflowMemory.pluginDrafts[plugin[1]] = { activity, customerMessage, priceTable, rulesChecked: [...rulesChecked], serviceRegion, storeName }; setEnabled(true); setDraftDirty(false); workflowMemory.pluginStates[plugin[1]] = "使用中"; workflowMemory.pluginDraftNeedsApply.delete(plugin[1]); publishWorkflowChange(); notify(`${plugin[1]}已${wasLive ? "更新" : "启用"}；只影响新的客户会话，可随时暂停`); }}>{enabled ? "确认结果后更新设置" : "确认结果后启用"}</Button>}
+          {(!enabled || draftDirty) && <Button disabled={!tested} kind="primary" onClick={() => { const wasLive = (workflowMemory.pluginStates[plugin[1]] ?? plugin[3]) === "使用中"; workflowMemory.pluginDrafts[plugin[1]] = { customerMessage, priceTable, rulesChecked: [...rulesChecked], serviceRegion, storeName }; setEnabled(true); setDraftDirty(false); workflowMemory.pluginStates[plugin[1]] = "使用中"; workflowMemory.pluginDraftNeedsApply.delete(plugin[1]); publishWorkflowChange(); notify(`${plugin[1]}已${wasLive ? "更新" : "启用"}；只影响新的客户会话，可随时暂停`); }}>{enabled ? "确认结果后更新设置" : "确认结果后启用"}</Button>}
         </div>
       </Card>
-    </div>
   );
 }
 
@@ -1673,7 +1690,7 @@ function ActivitiesScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">
   const draftComplete = !duplicateName && draftInventoryValid && draftName.trim().length >= 4 && draftPeriod.trim().length >= 8 && draftBenefit.trim().length >= 10 && draftAudience.trim().length >= 6;
   return (
     <div className="activities-layout">
-      <Card title="把一个真实活动加进来" caption="先保存草稿；店长审核通过后，系统才会发给客户" className="activity-form">
+      <Card title="把一个真实活动加进来" caption="补全时间、权益、名额和海报后，保存为可用活动" className="activity-form">
         <label><span>活动名称</span><input onChange={(event) => { setDraftName(event.target.value); setSaved(false); }} value={draftName} /></label>
         <label><span>客户在哪段时间可以参加</span><input onChange={(event) => { setDraftPeriod(event.target.value); setSaved(false); }} value={draftPeriod} /></label>
         <label><span>客户实际能得到什么</span><textarea onChange={(event) => { setDraftBenefit(event.target.value); setSaved(false); }} value={draftBenefit} /></label>
@@ -1683,10 +1700,10 @@ function ActivitiesScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">
           <FileUpload accept="image/*" label="上传活动海报" onUpload={(name) => { setPosterName(name); setSaved(false); notify(`${name} 已上传；提交前请核对海报文字`); }} />
           <span>当前海报：{posterName}</span>
         </div>
-        <div className="poster-mini"><span>{draftName || "活动名称待填写"}</span><b>{draftBenefit || "活动权益待填写"}</b><small>演示海报预览 · 具体范围以审核结果为准</small></div>
+        <div className="poster-mini"><span>{draftName || "活动名称待填写"}</span><b>{draftBenefit || "活动权益待填写"}</b><small>演示海报预览 · 以页面保存的时间、权益和名额为准</small></div>
         <div className="button-row">
           <Button disabled={!draftComplete} onClick={() => { setSaved(true); notify("活动已保存为草稿，不会发给真实客户"); }}>{draftComplete ? "保存草稿" : duplicateName ? "名称已存在，请换一个" : !draftInventoryValid ? "剩余名额要填大于 0 的整数" : "先补全名称、时间、权益和客户范围"}</Button>
-          <Button disabled={!saved || posterName === "尚未上传"} kind="primary" onClick={() => { setSubmittedActivity([draftName.trim(), draftPeriod.trim(), draftBenefit.trim(), "等待店长审核", "0", draftInventory.trim()]); notify("活动已提交店长审核；现在已出现在右侧列表，审核通过前不会发送"); }}>保存草稿并上传海报后，提交审核</Button>
+          <Button disabled={!saved || posterName === "尚未上传"} kind="primary" onClick={() => { setSubmittedActivity([draftName.trim(), draftPeriod.trim(), draftBenefit.trim(), "可使用", "0", draftInventory.trim()]); notify("活动已保存为可使用；每次生成消息前仍会检查日期和剩余名额"); }}>保存并设为可使用</Button>
         </div>
         {duplicateName && <p className="form-hint">“{draftName.trim()}”已经在右侧列表里。请直接核对原活动，或换一个不会混淆的新名称。</p>}
       </Card>
@@ -1717,7 +1734,6 @@ function RecallMetricsScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notif
   function openPoorContentCustomer() {
     const customerName = poorContentCustomer[0];
     const stopped = workflowMemory.stoppedCustomers.has(customerName);
-    const assignedDue = workflowMemory.assignedCustomers[customerName];
     goTo("recall-customer-detail", {
       customerName,
       renovationStage: poorContentCustomer[1],
@@ -1725,11 +1741,9 @@ function RecallMetricsScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notif
       priorityScore: poorContentCustomer[3],
       nextAction: stopped
         ? "自动联系已停止，保留客户记录"
-        : assignedDue
-          ? "已交给销售小陈人工查看，自动计划已暂停"
-          : poorContentCustomer[4],
-      nextTime: stopped ? "已停止" : assignedDue || poorContentCustomer[5],
-      currentStatus: stopped ? "stopped" : assignedDue ? "assigned" : "active",
+        : poorContentCustomer[4],
+      nextTime: stopped ? "已停止" : poorContentCustomer[5],
+      currentStatus: stopped ? "stopped" : "active",
     });
   }
 
@@ -1758,83 +1772,21 @@ function RecallPoolScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">
   const sorted = customers
     .map((row) => workflowMemory.stoppedCustomers.has(row[0])
       ? [row[0], row[1], row[2], row[3], "自动联系已停止，保留客户记录", "已停止"]
-      : workflowMemory.assignedCustomers[row[0]]
-        ? [row[0], row[1], row[2], row[3], "已交给销售小陈人工查看，自动计划已暂停", workflowMemory.assignedCustomers[row[0]]]
       : [...row])
     .filter((row) => row[0].includes(query.trim()))
     .sort((a,b) => sort === "优先分从高到低" ? Number(b[3])-Number(a[3]) : scheduleRank(a[5])-scheduleRank(b[5]));
-  const active = sorted.filter((row) => row[5] !== "已停止" && !workflowMemory.assignedCustomers[row[0]]);
-  const assigned = sorted.filter((row) => row[5] !== "已停止" && Boolean(workflowMemory.assignedCustomers[row[0]]));
+  const active = sorted.filter((row) => row[5] !== "已停止");
   const stopped = sorted.filter((row) => row[5] === "已停止");
   return (
     <div className="stack">
       <div className="filter-bar"><div><b>正在自动跟进的客户</b><span>这里显示 8 位演示客户；实际使用时只显示本店客户</span></div><select value={sort} onChange={(e) => setSort(e.target.value)}><option>优先分从高到低</option><option>下一次联系从近到远</option></select><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="输入客户姓名" aria-label="搜索跟进客户" /><Button onClick={() => notify("当前演示客户列表已导出；没有读取真实手机号")}>导出当前列表</Button></div>
       <div className="customer-table">
         <div><b>客户</b><b>客户现在到哪一步</b><b>上次沟通结果</b><b>优先分</b><b>下一步做什么</b><b>什么时候做</b></div>
-        {active.map((row,index) => <button className={index===0 ? "selected" : ""} key={row[0]} onClick={() => goTo("recall-customer-detail", { customerName: row[0], renovationStage: row[1], contactStage: row[2], priorityScore: row[3], nextAction: row[4], nextTime: row[5], currentStatus: "active" })}><span>{row[0]}</span><span>{row[1]}</span><span>{row[2]}</span><strong className={Number(row[3]) > 70 ? "good" : Number(row[3]) < 30 ? "bad" : ""}>{row[3]} / 100</strong><span>{row[4]}</span><em>{row[5]}<small>查看并决定 ›</small></em></button>)}
-        {assigned.length > 0 && <p className="stopped-heading">已交给销售人工查看（自动计划已暂停）</p>}
-        {assigned.map((row) => <button className="stopped-row" key={row[0]} onClick={() => goTo("recall-customer-detail", { customerName: row[0], renovationStage: row[1], contactStage: row[2], priorityScore: row[3], nextAction: row[4], nextTime: row[5], currentStatus: "assigned" })}><span>{row[0]}</span><span>{row[1]}</span><span>{row[2]}</span><strong>{row[3]} / 100</strong><span>{row[4]}</span><em>{row[5]}<small>查看人工任务 ›</small></em></button>)}
+        {active.map((row,index) => <button className={index===0 ? "selected" : ""} key={row[0]} onClick={() => goTo("recall-customer-detail", { customerName: row[0], renovationStage: row[1], contactStage: row[2], priorityScore: row[3], nextAction: row[4], nextTime: row[5], currentStatus: "active" })}><span>{row[0]}</span><span>{row[1]}</span><span>{row[2]}</span><strong className={Number(row[3]) > 70 ? "good" : Number(row[3]) < 30 ? "bad" : ""}>{row[3]} / 100</strong><span>{row[4]}</span><em>{row[5]}<small>查看并安排 ›</small></em></button>)}
         {stopped.length > 0 && <p className="stopped-heading">已停止自动发送（保留记录，不会再联系）</p>}
         {stopped.map((row) => <button className="stopped-row" key={row[0]} onClick={() => goTo("recall-customer-detail", { customerName: row[0], renovationStage: row[1], contactStage: row[2], priorityScore: row[3], nextAction: row[4], nextTime: row[5], currentStatus: "stopped" })}><span>{row[0]}</span><span>{row[1]}</span><span>{row[2]}</span><strong>{row[3]} / 100</strong><span>{row[4]}</span><em>{row[5]}<small>查看记录 ›</small></em></button>)}
         {sorted.length === 0 && <p className="empty-result">没有找到这个姓名。请检查输入，或清空搜索后重试。</p>}
       </div>
-    </div>
-  );
-}
-
-function CadenceScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
-  useWorkflowBridge();
-  const baseTouches = [
-    ["1", "知识", "《新房装修前先确认的 7 件事》", "加企微后 1 天", "已发送"],
-    ["2", "案例", "同小区 118㎡原木风收纳案例", "第 1 次后 2 天", "已发送"],
-    ["3", "知识", "15 万预算如何分配更合理", "第 2 次后 2 天", "等店长审核"],
-    ["4", "权益", "免费上门量房体验券", "第 3 次后 3 天", "已安排，尚未发送"],
-    ["5", "证明", "ENF 板材检测与工艺细节", "第 4 次后 3 天", "尚未生成"],
-    ["6", "活动", "暑期焕新季 · 周末 2 个名额", "第 5 次后 5 天", "尚未生成"],
-    ["7", "关怀", "礼貌询问是否还需要帮助", "第 6 次后 7 天", "尚未生成"],
-  ];
-  const touches = baseTouches.map((row) => {
-    const update = workflowMemory.cadenceUpdates[row[0]];
-    return [
-      row[0],
-      row[1],
-      update?.title || row[2],
-      update?.interval || row[3],
-      update?.status || row[4],
-      update?.message || "",
-    ];
-  });
-  const [selected, setSelected] = useState(2);
-  const current = touches[selected];
-  const alreadySent = current[4] === "已发送";
-  const assignedDue = workflowMemory.assignedCustomers["林女士"];
-  const planLockReason = customerFollowupIsStopped("林女士")
-    ? "林女士已停止自动联系"
-    : assignedDue
-      ? `林女士已交给销售小陈人工查看（${assignedDue}），自动计划已暂停`
-      : "";
-  const sourceLockReason = cadenceSourceLockReason(current[2]);
-  const messageLockReason = alreadySent ? "" : planLockReason || sourceLockReason;
-  const previewMessage = current[5] || (selected === 2
-    ? "结合您 118㎡原木风需求，建议先把预算分成柜体、硬装和软装三部分，再决定哪些项目需要升级。"
-    : "这里会显示这一条消息的完整文字和附件。点左边不同步骤，内容会跟着切换。");
-  return (
-    <div className="cadence-layout">
-      {messageLockReason && <div className="action-alert" style={{ gridColumn: "1 / -1" }}><div><b>{planLockReason ? "这套自动跟进计划已经锁住" : "当前这条消息的来源已经停用"}</b><span>{messageLockReason}。已发送记录仍可查看，当前消息不能修改或提交。</span></div></div>}
-      <Card title="林女士｜最多联系 7 次的计划" caption="客户一旦回复、拒绝或成交，后面的消息会自动停止，不要求发满 7 次" className="touch-list">
-        {touches.map((row,index) => <button className={index===selected ? "active" : ""} key={row[0]} onClick={() => setSelected(index)}><i>{row[0]}</i><div><Pill>{row[1]}</Pill><b>{row[2]}</b><span>{row[3]}</span></div><Pill tone={row[4] === "已发送" ? "positive" : row[4].includes("审核") ? "warning" : "neutral"}>{row[4]}</Pill></button>)}
-      </Card>
-      <Card title={`当前选择：第 ${current[0]} 次 · ${current[2]}`} caption={`当前状态：${current[4]}`} className="touch-detail">
-        <div className="message-preview"><small>给林女士的示例内容</small><h3>{current[2]}</h3><p>{previewMessage}</p><span>演示内容 · 不会真实发送</span></div>
-        <label className="cadence-interval"><span>{alreadySent ? "实际发送时间（已发送，不能修改）" : messageLockReason ? "这条消息已锁住，不能改时间" : "什么时候发送"}</span><select disabled={alreadySent || Boolean(messageLockReason)} value={current[3]} onChange={(event) => { workflowMemory.cadenceUpdates[current[0]] = { ...workflowMemory.cadenceUpdates[current[0]], interval: event.target.value, status: "草稿，需重新提交", title: current[2] }; publishWorkflowChange(); }}><option>{current[3]}</option><option>比原计划晚 1 天</option><option>比原计划晚 3 天</option><option>暂停这一次</option></select></label>
-        {alreadySent && <div className="rule-box"><b>这是一条已发送记录</b><p>可以查看当时发了什么，但不能改文字、附件或时间，也不能重新提交成草稿。</p></div>}
-        <div className="rule-box"><b>为什么给她看这个</b><p>{selected === 2 ? "客户问过总价，但还没看懂哪些包含、哪些另算；先解释预算，不急着推活动。" : "系统根据客户之前的聊天和装修阶段选择这条内容。"}</p></div>
-        <div className="rule-box"><b>什么时候一定会停止</b><p>客户回复、明确拒绝、已成交或要求不要再联系时，后续自动消息立即停止。</p></div>
-        <div className="button-row">
-          <Button onClick={() => { const saved = workflowMemory.cadenceUpdates[current[0]]; goTo("recall-cadence-detail", { customerName: "林女士", touchNumber: current[0], touchTitle: current[2], touchTime: current[3], currentMessage: saved?.message ?? "", currentAttachment: saved?.attachment ?? "", currentReason: saved?.sendReason ?? "", currentStatus: alreadySent ? "已发送" : current[4], customerLockReason: planLockReason, sourceLockReason }); }}>{alreadySent ? "查看当时发送的内容" : messageLockReason ? "查看这条消息（已锁住）" : "修改这一条的文字和时间"}</Button>
-          <Button disabled={selected < 2 || alreadySent || Boolean(messageLockReason)} kind="primary" onClick={() => { workflowMemory.cadenceUpdates[current[0]] = { ...workflowMemory.cadenceUpdates[current[0]], interval: current[3], status: "等店长审核", title: current[2] }; publishWorkflowChange(); notify(`第 ${current[0]} 次内容已提交店长审核；审核前不会发送`); }}>{alreadySent ? "已发送，不能重新提交" : messageLockReason ? "这条消息已锁住，不能提交" : "提交这一条给店长审核"}</Button>
-        </div>
-      </Card>
     </div>
   );
 }
@@ -1844,13 +1796,14 @@ function RecallPluginScreen({ goTo }: Pick<ScreenProps, "goTo">) {
   const couponPaused = workflowMemory.couponStatus === "已暂停";
   return (
     <div className="plugin-grid recall-plugin-cards">
-      <Card className="plugin-card"><div className="plugin-letter">图</div><Pill tone="positive">正在使用</Pill><h3>按客户情况生成知识海报</h3><p>例如客户拿不准预算时，生成预算拆分说明；每张海报发送前都要店长审核。</p><div className="plugin-stats"><span>近 30 天已发</span><strong>1,842 张</strong></div><Button kind="primary" onClick={() => goTo("recall-poster")}>设置海报内容</Button></Card>
-      <Card className="plugin-card"><div className="plugin-letter">券</div><Pill tone={couponPaused ? "danger" : "positive"}>{couponPaused ? "已暂停，不会发券" : "正在使用"}</Pill><h3>生成免费上门量房券</h3><p>{couponPaused ? "预约数量来源已停用；恢复并保存完整规则前，不会再生成新券。" : "只有客户地址能服务、当天还有预约名额时才生成；发送前仍要店长审核。"}</p><div className="plugin-stats"><span>近 30 天已使用</span><strong>86 张</strong></div><Button kind="primary" onClick={() => goTo("recall-coupon")}>{couponPaused ? "检查规则并恢复" : "设置量房券规则"}</Button></Card>
+      <Card className="plugin-card"><div className="plugin-letter">图</div><Pill tone="positive">{workflowMemory.posterStatus}</Pill><h3>按客户情况生成知识海报</h3><p>例如客户拿不准预算时，生成预算拆分说明；发送前自动检查客户状态和资料有效期。</p><div className="plugin-stats"><span>近 30 天已发</span><strong>1,842 张</strong></div><Button kind="primary" onClick={() => goTo("recall-poster")}>设置海报内容</Button></Card>
+      <Card className="plugin-card"><div className="plugin-letter">券</div><Pill tone={couponPaused ? "danger" : "positive"}>{couponPaused ? "已暂停，不会发券" : "正在使用"}</Pill><h3>生成免费上门量房券</h3><p>{couponPaused ? "预约数量来源已停用；恢复并保存完整规则前，不会再生成新券。" : "只有客户地址能服务、当天还有预约名额时才生成；条件不符就不发送。"}</p><div className="plugin-stats"><span>近 30 天已使用</span><strong>86 张</strong></div><Button kind="primary" onClick={() => goTo("recall-coupon")}>{couponPaused ? "检查规则并恢复" : "设置量房券规则"}</Button></Card>
     </div>
   );
 }
 
-function PosterScreen({ notify }: Pick<ScreenProps, "notify">) {
+function PosterScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
+  useWorkflowBridge();
   const [topic, setTopic] = useState("预算拆分");
   const [stage, setStage] = useState("已经报价，但还没到店");
   const [storeName, setStoreName] = useState("有大有小｜漳州龙文店");
@@ -1881,15 +1834,17 @@ function PosterScreen({ notify }: Pick<ScreenProps, "notify">) {
   const customerDetailsAvailable = stage !== "刚加企微，还没说需求";
   const showCustomerDetails = customerDetailsAvailable && includeCustomerDetails;
   return (
-    <div className="poster-layout">
+    <div className="stack">
+      <div className="subpage-back"><Button onClick={() => goTo("recall-plugins")}>← 返回自动跟进工具</Button></div>
+      <div className="poster-layout">
       <Card title="什么情况下生成哪种知识海报" caption="这是演示设置；保存后也不会立即发给客户">
         <label><span>客户现在到哪一步</span><select value={stage} onChange={(event) => { const nextStage = event.target.value; setStage(nextStage); if (nextStage === "刚加企微，还没说需求") setIncludeCustomerDetails(false); }}><option>刚加企微，还没说需求</option><option>已经发户型图</option><option>已经报价，但还没到店</option><option>已经量房，还没签约</option></select></label>
         <label><span>这时给客户讲什么</span><select value={topic} onChange={(e)=>setTopic(e.target.value)}><option>预算拆分</option><option>板材环保</option><option>收纳规划</option><option>装修流程</option></select></label>
         <label><span>海报底部显示的门店</span><input onChange={(event) => setStoreName(event.target.value)} value={storeName} /></label>
-        <label className="toggle-line"><input checked={showCustomerDetails} disabled={!customerDetailsAvailable} onChange={(event) => setIncludeCustomerDetails(event.target.checked)} type="checkbox" />{customerDetailsAvailable ? "只有客户已经说过面积和风格时，才把它写进海报" : "客户还没说面积和风格，当前只能生成通用海报"}</label>
-        <label className="toggle-line"><input defaultChecked disabled type="checkbox" />发送前必须由店长人工审核（安全设置，不能关闭）</label>
+        <label className="toggle-line"><input checked={showCustomerDetails} disabled={!customerDetailsAvailable} onChange={(event) => setIncludeCustomerDetails(event.target.checked)} type="checkbox" />{customerDetailsAvailable ? "在海报中使用客户已提供的面积和风格" : "客户还没提供面积和风格，使用通用海报"}</label>
+        <div className="rule-box"><b>发送前自动检查</b><p>系统会检查客户未拒绝、资料仍有效，内容也符合当前阶段。</p></div>
         {storeName.trim().length < 4 && <p className="form-hint">先填写客户能认出的门店名称，预览和实际海报才不会落款错误。</p>}
-        <Button disabled={storeName.trim().length < 4} kind="primary" onClick={() => notify(`海报规则已保存为草稿：${stage} → ${topic} → ${storeName.trim()}；不会立即发送`)}>{storeName.trim().length < 4 ? "先填写门店名称" : "保存海报规则草稿"}</Button>
+        <Button disabled={storeName.trim().length < 4} kind="primary" onClick={() => { workflowMemory.posterStatus = "已保存并使用"; publishWorkflowChange(); notify(`海报规则已保存：${stage} → ${topic} → ${storeName.trim()}；以后生成海报时使用，不会立即发送`); }}>{storeName.trim().length < 4 ? "先填写门店名称" : "保存海报规则"}</Button>
       </Card>
       <div className="knowledge-poster">
         <small>演示预览 · 不会真实发送</small>
@@ -1898,24 +1853,24 @@ function PosterScreen({ notify }: Pick<ScreenProps, "notify">) {
         {preview.rows.map(([label, value, progress]) => <div key={label}><span>{label}</span><b>{value}</b><Progress value={progress}/></div>)}
         <em>{storeName.trim() || "门店名称待填写"}｜需要时回复“{preview.keyword}”</em>
       </div>
+      </div>
     </div>
   );
 }
 
-function CouponScreen({ notify }: Pick<ScreenProps, "notify">) {
+function CouponScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
   useWorkflowBridge();
   const [benefit, setBenefit] = useState("免费上门量房 + 初步平面方案");
   const [serviceRegion, setServiceRegion] = useState("漳州市龙文区、芗城区；厦门市指定区域");
   const [validity, setValidity] = useState("7 天内");
-  const [zhangzhouCapacity, setZhangzhouCapacity] = useState("6");
-  const [xiamenCapacity, setXiamenCapacity] = useState("4");
+  const [dailyCapacity, setDailyCapacity] = useState("6");
   const [capacitySource, setCapacitySource] = useState("门店每日接待表");
   const validityOptions = ["3 天内", "7 天内", "14 天内", "30 天内"];
   const stopping = capacitySource === "暂不读取，停止发券";
   const couponPaused = workflowMemory.couponStatus === "已暂停";
   const preparingToStop = stopping && !couponPaused;
-  const capacityValid = [zhangzhouCapacity, xiamenCapacity].every((value) => /^\d+$/.test(value) && Number(value) > 0);
-  const dailyCapacity = `漳州 ${zhangzhouCapacity || "待填"} 户 / 厦门 ${xiamenCapacity || "待填"} 户`;
+  const capacityValid = /^\d+$/.test(dailyCapacity) && Number(dailyCapacity) > 0;
+  const dailyCapacityLabel = `${dailyCapacity || "待填"} 户 / 天`;
   const complete = benefit.trim().length >= 4
     && serviceRegion.trim().length >= 4
     && validityOptions.includes(validity)
@@ -1931,88 +1886,25 @@ function CouponScreen({ notify }: Pick<ScreenProps, "notify">) {
   }
 
   return (
-    <div className="coupon-layout">
+    <div className="stack">
+      <div className="subpage-back"><Button onClick={() => goTo("recall-plugins")}>← 返回自动跟进工具</Button></div>
+      <div className="coupon-layout">
       <Card title="量房券必须遵守的规则" caption="地址和当天可预约数量都符合，系统才允许生成">
         <label><span>券上写给客户的权益</span><input onChange={(event) => setBenefit(event.target.value)} value={benefit} /></label>
         <label><span>哪些地区可以服务</span><input onChange={(event) => setServiceRegion(event.target.value)} value={serviceRegion} /></label>
         <label><span>客户领取后多久要预约</span><select onChange={(event) => setValidity(event.target.value)} value={validity}>{validityOptions.map((option) => <option key={option}>{option}</option>)}</select></label>
-        <div className="source-selects">
-          <label><span>漳州每天最多可预约多少户</span><input min="1" onChange={(event) => setZhangzhouCapacity(event.target.value)} step="1" type="number" value={zhangzhouCapacity} /></label>
-          <label><span>厦门每天最多可预约多少户</span><input min="1" onChange={(event) => setXiamenCapacity(event.target.value)} step="1" type="number" value={xiamenCapacity} /></label>
-        </div>
+        <label><span>本店每天最多可预约多少户</span><input min="1" onChange={(event) => setDailyCapacity(event.target.value)} step="1" type="number" value={dailyCapacity} /></label>
         <label><span>预约数量从哪里读取</span><select onChange={(event) => setCapacitySource(event.target.value)} value={capacitySource}><option>门店每日接待表</option><option>暂不读取，停止发券</option></select></label>
-        <label className="toggle-line"><input defaultChecked disabled type="checkbox" />每次发送前重新检查服务地区和当天剩余名额（安全设置，不能关闭）</label>
+        <div className="rule-box"><b>发送前自动检查</b><p>系统会重新检查服务地区和当天剩余名额；不符合就不生成量房券。</p></div>
         {!stopping && !complete && <p className="form-hint">先补全权益、服务地区、预约期限和大于 0 的每日名额，才可以继续使用。</p>}
         {preparingToStop && <div className="rule-box"><b>保存后会立即暂停发券</b><p>客户不会再收到新券；以后重新选择“门店每日接待表”并补全规则，才能恢复。</p></div>}
         {stopping && couponPaused && <div className="rule-box"><b>发券已经暂停</b><p>不会再生成新券。要恢复，请先把上方来源改回“门店每日接待表”，核对完整规则后再保存。</p></div>}
         <Button disabled={!canSave || (stopping && couponPaused)} kind={stopping ? "danger" : "primary"} onClick={saveCouponRule}>{stopping ? couponPaused ? "发券已暂停；改回接待表后可恢复" : "确认暂停，不再生成新券" : couponPaused ? "保存完整规则并恢复使用" : "保存量房券规则"}</Button>
       </Card>
       <div className="coupon-card">
-        <small>{stopping ? couponPaused ? "发券已暂停 · 不会再生成新券" : "准备暂停 · 保存后不再生成新券" : couponPaused ? "发券已暂停 · 以下只用于核对旧规则" : "演示预览 · 不是真实券码"}</small><h2>{benefit.trim() || "权益待填写"}</h2><p>{dailyCapacity.trim() || "每日名额待填写"}</p><div className="coupon-code">领取后 {validity.trim() || "预约期限待填写"}预约 · 示例券 HZ0286</div><span>适用：{serviceRegion.trim() || "服务地区待填写"}</span><em>需预约 · 每户限用 1 次 · 以门店确认时间为准</em>
+        <small>{stopping ? couponPaused ? "发券已暂停 · 不会再生成新券" : "准备暂停 · 保存后不再生成新券" : couponPaused ? "发券已暂停 · 以下只用于核对旧规则" : "演示预览 · 不是真实券码"}</small><h2>{benefit.trim() || "权益待填写"}</h2><p>{dailyCapacityLabel}</p><div className="coupon-code">领取后 {validity.trim() || "预约期限待填写"}预约 · 示例券 HZ0286</div><span>适用：{serviceRegion.trim() || "服务地区待填写"}</span><em>需预约 · 每户限用 1 次 · 以门店确认时间为准</em>
       </div>
-    </div>
-  );
-}
-
-function ReviewScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
-  useWorkflowBridge();
-  const pending = [
-    ["林女士", "第 3 次 · 预算知识海报", "今天 16:30", "资料齐全"],
-    ["赵女士", "第 4 次 · 免费量房体验券", "今天 18:00", "要核对名额"],
-    ["吴先生", "第 6 次 · 暑期活动海报", "明天 10:00", "要核对活动"],
-    ["王女士", "第 2 次 · 报价解释", "明天 14:00", "资料齐全"],
-  ];
-  const keyForIndex = (index: number) => reviewKey(pending[index][0], pending[index][1]);
-  const [selected, setSelected] = useState(1);
-  const approved = pending.map((_, index) => index).filter((index) => workflowMemory.approvedReviews.has(keyForIndex(index)));
-  const verified = pending.map((_, index) => index).filter((index) => workflowMemory.verifiedReviews.has(keyForIndex(index)));
-  const skipped = pending.map((_, index) => index).filter((index) => workflowMemory.skippedReviews.has(keyForIndex(index)));
-  const stopReasonForIndex = (index: number) => reviewWorkflowStopReason(pending[index][0], pending[index][1]);
-  const stopped = pending.map((_, index) => index).filter((index) => Boolean(stopReasonForIndex(index)));
-  const [confirmStop, setConfirmStop] = useState(false);
-  const [stopReason, setStopReason] = useState("");
-  const current = pending[selected];
-  const currentKey = keyForIndex(selected);
-  const needsSourceVerification = current[3] !== "资料齐全";
-  const hasEditedCurrentMessage = Boolean(workflowMemory.reviewMessages[currentKey]);
-  const needsVerification = needsSourceVerification || hasEditedCurrentMessage;
-  const canApprove = (!needsVerification || verified.includes(selected)) && !skipped.includes(selected);
-  const verificationLabel = hasEditedCurrentMessage
-    ? "重新核对修改后的文字"
-    : current[3] === "要核对名额"
-      ? "核对今天还剩多少量房名额"
-      : "核对活动日期和权益";
-  const attachment = current[1].includes("量房") ? "免费上门量房券（示例 HZ0286）" : current[1].includes("预算") ? "个性化预算知识海报" : current[1].includes("活动") ? "暑期活动海报" : "报价包含项说明";
-  const defaultMessage = current[1].includes("量房")
-    ? `${current[0]}，之前您提到还没确定房屋尺寸。这里有一张免费上门量房体验券，领取后 7 天内可以预约，我们会给您一份初步平面方案。需要的话回复“量房”，我帮您看可约时间。`
-    : `${current[0]}，根据您之前问过的问题，我整理了一份简单说明。您需要时可以先看看，不方便回复也没关系。`;
-  const message = workflowMemory.reviewMessages[currentKey] || defaultMessage;
-  return (
-    <div className="review-layout">
-      <Card title="等待店长决定的消息" caption="点左边客户，右边会显示这个人将收到的完整内容" className="pending-list">
-        {pending.map((row,index) => {
-          const itemKey = keyForIndex(index);
-          const hasEditedMessage = Boolean(workflowMemory.reviewMessages[itemKey]);
-          return <button className={index===selected ? "active" : ""} key={row[0]} onClick={() => { setSelected(index); setConfirmStop(false); setStopReason(""); }}><div><b>{row[0]}</b><span>{row[1]}</span><small>{stopped.includes(index) ? `已停止：${stopReasonForIndex(index)}` : approved.includes(index) ? "已批准，等待计划时间" : skipped.includes(index) ? "这一条已跳过" : verified.includes(index) ? "已核对，等待批准" : hasEditedMessage ? "文字已修改，等待审核" : row[2]}</small></div><Pill tone={stopped.includes(index) || skipped.includes(index) ? "neutral" : approved.includes(index) || verified.includes(index) || (!hasEditedMessage && row[3] === "资料齐全") ? "positive" : "warning"}>{stopped.includes(index) ? "已停止" : approved.includes(index) ? "已批准" : skipped.includes(index) ? "已跳过本条" : verified.includes(index) ? "已核对" : hasEditedMessage ? "已修改" : row[3]}</Pill></button>;
-        })}
-      </Card>
-      <Card title={`${current[0]}｜${current[1]}`} caption={`原计划：${current[2]}；批准后按这个时间发送，不会立即发送`} className="review-evidence">
-        <div className="evidence-block"><b>为什么现在联系</b><p>客户暂缓装修 · 3 天未回复 · 地址在服务范围内。系统建议给一条有用内容，不催单。</p></div>
-        {stopped.includes(selected) && <div className="rule-box"><b>这条消息已经锁住，不会发送</b><p>停止原因：{stopReasonForIndex(selected)}。相关记录仍保留；先到产生停止状态的页面处理，不能在这里绕过。</p></div>}
-        <div className="message-preview"><small>客户将收到的原话</small><p>{message}</p><span>附件：{attachment} · 演示数据</span></div>
-        <div className="check-list">{["客户地址在服务范围内", "活动或资料仍在有效期", "当天还有可预约名额", "没有保证价格或结果", "客户没有拒绝或要求勿扰", "距上一次联系时间足够"].map((item, index) => {
-          const unresolved = needsVerification && !verified.includes(selected) && (hasEditedCurrentMessage ? index === 3 : current[3] === "要核对名额" ? index === 2 : index === 1);
-          return <div className={unresolved ? "needs-check" : ""} key={item}><span>{unresolved ? "!" : "✓"}</span>{item}<Pill tone={unresolved ? "warning" : "positive"}>{unresolved ? "还没核对" : "已核对"}</Pill></div>;
-        })}</div>
-        {needsVerification && !verified.includes(selected) && !stopped.includes(selected) && <div className="verification-action"><b>批准按钮暂时锁住</b><span>先{verificationLabel}，页面才允许批准。</span><Button onClick={() => { workflowMemory.verifiedReviews.add(currentKey); publishWorkflowChange(); notify(`${verificationLabel}：演示结果已核对通过`); }}>演示：完成这项核对</Button></div>}
-        {confirmStop && <div className="stop-confirm"><b>确认以后不再给 {current[0]} 自动发消息？</b><p>停止后保留客户和聊天记录；以后只有销售人工操作才会再联系。请写明原因。</p><label><span>停止原因（必填）</span><input onChange={(event) => setStopReason(event.target.value)} placeholder="例如：客户明确要求不要再联系" value={stopReason} /></label><div className="button-row"><Button onClick={() => { setConfirmStop(false); setStopReason(""); }}>取消</Button><Button disabled={stopReason.trim().length < 4} kind="danger" onClick={() => { const reason = stopReason.trim(); workflowMemory.stoppedReviews.add(currentKey); workflowMemory.reviewStopReasons[currentKey] = reason; workflowMemory.stoppedCustomers.add(current[0]); delete workflowMemory.assignedCustomers[current[0]]; workflowMemory.approvedReviews.delete(currentKey); workflowMemory.skippedReviews.delete(currentKey); workflowMemory.verifiedReviews.delete(currentKey); window.dispatchEvent(new CustomEvent("demo-review-status-response", { detail: { customerName: current[0], messageType: current[1], reason, status: "stopped" } })); dispatchCustomerFollowupStatus(current[0]); setConfirmStop(false); publishWorkflowChange(); notify(`已停止给${current[0]}全部自动消息；客户池和后续计划也已同步锁住，客户资料仍保留`); }}>填写原因后，确认永久停止</Button></div></div>}
-        <div className="button-row">
-          <Button disabled={!canApprove || approved.includes(selected) || stopped.includes(selected)} kind="primary" onClick={() => { workflowMemory.verifiedReviews.add(currentKey); workflowMemory.approvedReviews.add(currentKey); workflowMemory.skippedReviews.delete(currentKey); publishWorkflowChange(); notify(`已批准：将在${current[2]}给${current[0]}发送；若客户提前回复会自动取消`); }}>{stopped.includes(selected) ? "这条消息已锁住" : skipped.includes(selected) ? "这一条已跳过" : approved.includes(selected) ? "已批准，等待计划时间" : !canApprove ? `先${verificationLabel}` : `批准，按${current[2]}发送`}</Button>
-          <Button disabled={stopped.includes(selected)} onClick={() => goTo("recall-review-detail", { customerName: current[0], activityName: current[1], plannedTime: current[2], verificationNeeded: needsVerification && !verified.includes(selected) ? "yes" : "no", currentMessage: message, currentStatus: stopped.includes(selected) ? "stopped" : approved.includes(selected) ? "approved" : skipped.includes(selected) ? "skipped" : "pending" })}>{stopped.includes(selected) ? "已锁住，不能继续编辑" : "修改文字和查看全部证据"}</Button>
-          <Button disabled={stopped.includes(selected) || skipped.includes(selected)} onClick={() => { workflowMemory.skippedReviews.add(currentKey); workflowMemory.approvedReviews.delete(currentKey); publishWorkflowChange(); notify(`已跳过${current[0]}这一条消息；后续合适的跟进仍保留`); }}>只跳过这一条</Button>
-          <Button disabled={stopped.includes(selected)} kind="danger" onClick={() => setConfirmStop(true)}>以后不再自动联系这位客户</Button>
-        </div>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -2035,16 +1927,13 @@ export function ScreenContent({ screen, context, goTo, notify }: ScreenProps) {
     case "sales-metrics": return <MetricsScreen goTo={goTo} notify={notify} />;
     case "sales-quality": return <QualityScreen goTo={goTo} notify={notify} />;
     case "sales-faq": return <FaqScreen goTo={goTo} notify={notify} />;
-    case "sales-plugins": return <PluginCenterScreen goTo={goTo} notify={notify} />;
-    case "sales-plugin-config": return <PluginConfigScreen context={context} notify={notify} />;
+    case "sales-plugins": return <PluginCenterScreen notify={notify} />;
     case "recall-activities": return <ActivitiesScreen goTo={goTo} notify={notify} />;
     case "recall-metrics": return <RecallMetricsScreen goTo={goTo} notify={notify} />;
     case "recall-pool": return <RecallPoolScreen goTo={goTo} notify={notify} />;
-    case "recall-cadence": return <CadenceScreen goTo={goTo} notify={notify} />;
     case "recall-plugins": return <RecallPluginScreen goTo={goTo} />;
-    case "recall-poster": return <PosterScreen notify={notify} />;
-    case "recall-coupon": return <CouponScreen notify={notify} />;
-    case "recall-review": return <ReviewScreen goTo={goTo} notify={notify} />;
+    case "recall-poster": return <PosterScreen goTo={goTo} notify={notify} />;
+    case "recall-coupon": return <CouponScreen goTo={goTo} notify={notify} />;
     default: return <div>页面内容准备中</div>;
   }
 }

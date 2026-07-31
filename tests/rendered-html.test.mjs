@@ -23,7 +23,7 @@ async function render() {
   );
 }
 
-test("server-renders the store marketing assistant", async () => {
+test("server-renders the paid account entrance", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -39,16 +39,11 @@ test("server-renders the store marketing assistant", async () => {
     /<meta name="description" content="给全屋定制店长的操作演示，包含短视频获客、企微自动接待和沉默客户跟进。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
   );
 
-  assert.match(html, />门店营销助手<\/b>/);
-  assert.match(html, />短视频获客<\/b>/);
-  assert.match(html, />企微自动接待<\/b>/);
-  assert.match(html, />沉默客户跟进<\/b>/);
-
-  assert.match(html, /演示模式/);
-  assert.match(html, /刷新页面可恢复初始数据/);
-  assert.match(html, /不会向真实客户发送消息/);
-  assert.match(html, /还要检查 10 段/);
-  assert.match(html, /保存量房券规则/);
+  assert.match(html, /门店营销助手/);
+  assert.match(html, />登录<\/h1>/);
+  assert.match(html, />注册新门店<\/button>/);
+  assert.match(html, /paid@demo\.cn \/ 123456/);
+  assert.match(html, /new@demo\.cn \/ 123456/);
 
   assert.doesNotMatch(html, /看一遍再操作/);
   assert.doesNotMatch(html, /本页操作演示/);
@@ -61,12 +56,9 @@ test("server-renders the store marketing assistant", async () => {
 
 test("ships only page-specific operation demos", async () => {
   const expected = [
-    "recall-activities.mp4",
-    "recall-cadence.mp4",
     "recall-coupon.mp4",
     "recall-poster.mp4",
-    "recall-review.mp4",
-    "sales-plugin-config.mp4",
+    "sales-plugins.mp4",
     "sales-quality.mp4",
     "sales-simulation.mp4",
     "sales-training.mp4",
@@ -109,6 +101,8 @@ test("uses one continuous page scroll instead of a boxed inner scroller", async 
   assert.match(scrollBlock, /border:\s*0/);
   assert.match(scrollBlock, /overflow:\s*visible/);
   assert.doesNotMatch(scrollBlock, /overflow:\s*auto/);
+  assert.match(css, /\.detail-main\s*\{[\s\S]*?border:\s*0/);
+  assert.match(css, /\.detail-main\s*\{[\s\S]*?padding:\s*0/);
 });
 
 test("keeps the shared page structure concise", async () => {
@@ -149,6 +143,11 @@ test("marks each sales reply as borrowable by default and keeps reviews per conv
   assert.match(screenSource, /\["demo-champion-line-decision"\]/);
   assert.match(screenSource, /conversationId: row\[0\]/);
   assert.match(screenSource, /lineDecisions: JSON\.stringify\(lineDecisions\)/);
+  assert.match(screenSource, /const \[uploadedSamples, setUploadedSamples\]/);
+  assert.match(screenSource, /新记录在列表第一条/);
+  assert.match(screenSource, /到店（随文件读出）/);
+  assert.match(screenSource, /setUploadedSamples/);
+  assert.match(screenSource, /const samples = \[\.\.\.uploadedSamples, \.\.\.baseSamples\]/);
 
   assert.match(dataSource, /销售回复默认可借鉴；不妥的句子改为“不建议借鉴”/);
   assert.match(dataSource, /逐句确认这段销售聊天/);
@@ -164,6 +163,10 @@ test("lets step 02-04 edit rules and submit directly", async () => {
   assert.match(screenSource, /直接修改机器人说话规则/);
   assert.match(screenSource, /提交并应用/);
   assert.match(screenSource, /setAppliedText\(text\)/);
+  assert.match(screenSource, /const checks = \[/);
+  assert.match(screenSource, /const allChecksPassed = missingChecks\.length === 0/);
+  assert.match(screenSource, /hasEnoughContent && allChecksPassed && hasChanges/);
+  assert.match(screenSource, /不会只按字数判定/);
   assert.doesNotMatch(screenSource, /加一条规则/);
   assert.doesNotMatch(screenSource, /先用 3 段对话试一试/);
   assert.doesNotMatch(screenSource, /3 段示例试聊已通过/);
@@ -201,10 +204,143 @@ test("puts daily work first and folds low-frequency setup out of the way", async
   );
   assert.match(
     dataSource,
-    /id: "recall-review"[\s\S]*?cadence: "daily"/,
+    /id: "recall-pool"[\s\S]*?cadence: "daily"/,
   );
 
   assert.match(css, /\.task-nav-groups\s*\{/);
   assert.match(css, /\.setup-nav\s*\{[\s\S]*?border-top:/);
   assert.match(css, /\.setup-nav \.screen-nav button\s*\{[\s\S]*?color: var\(--muted\)/);
+});
+
+test("gates the product behind registration, login, and a clear demo payment", async () => {
+  const [accountSource, pageSource, css] = await Promise.all([
+    readFile(new URL("../app/account-access.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(accountSource, /type AccessView = "login" \| "register" \| "payment" \| "success"/);
+  assert.match(accountSource, /paid@demo\.cn/);
+  assert.match(accountSource, /new@demo\.cn/);
+  assert.match(accountSource, /注册并前往开通/);
+  assert.match(accountSource, /一次性开通费/);
+  assert.match(accountSource, /¥1,000/);
+  assert.match(accountSource, /微信支付/);
+  assert.match(accountSource, /支付宝/);
+  assert.match(accountSource, /演示支付，不会真实扣款/);
+  assert.match(accountSource, /disabled=\{!paymentAgreed\}/);
+  assert.match(accountSource, /onAccessGranted\(pendingAccount\)/);
+  assert.match(accountSource, /window\.sessionStorage/);
+  assert.match(accountSource, /route === "payment" && paymentReady/);
+  assert.match(accountSource, /storedRegistration\.paid/);
+  assert.match(accountSource, /paid: true/);
+  assert.match(pageSource, /if \(!account\)/);
+  assert.match(pageSource, /<AccountAccess/);
+  assert.match(pageSource, /onSignOut/);
+  assert.match(pageSource, /resetWorkflowDemo\(\)/);
+  assert.match(
+    await readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    /export function resetWorkflowDemo\(\)/,
+  );
+  assert.match(css, /\.account-access\s*\{/);
+  assert.match(css, /\.account-access-payment,/);
+});
+
+test("keeps 02-08 and 02-09 in one service page", async () => {
+  const [screenSource, dataSource, pageSource] = await Promise.all([
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(screenSource, /openSettings/);
+  assert.match(screenSource, /<PluginConfigScreen/);
+  assert.match(screenSource, /收起设置/);
+  assert.doesNotMatch(screenSource, /case "sales-plugin-config"/);
+  assert.doesNotMatch(screenSource, /goTo\("sales-plugin-config"/);
+  assert.doesNotMatch(dataSource, /id: "sales-plugin-config"/);
+  assert.doesNotMatch(pageSource, /sales-plugin-config/);
+  assert.match(pageSource, /demos\/sales-plugins\.mp4/);
+  assert.match(screenSource, /信息不够时怎么办/);
+  assert.match(screenSource, /setup\.needsPriceTable/);
+  assert.match(screenSource, /setup\.needsServiceRegion/);
+  assert.match(screenSource, /setPreviewIndex\(null\)/);
+  assert.match(screenSource, /setConfigIndex\(null\)/);
+  assert.match(screenSource, /修改会自动保存为草稿/);
+  assert.match(dataSource, /修改会自动保存为草稿；再用 4 个正反示例试运行/);
+  assert.doesNotMatch(screenSource, /还差 2 项设置/);
+  assert.doesNotMatch(screenSource, /使用哪个活动/);
+  assert.doesNotMatch(screenSource, /className="flow-steps"/);
+});
+
+test("nests 03-06 and 03-07 under 03-05 and removes the approval branch", async () => {
+  const [screenSource, detailSource, dataSource, pageSource] = await Promise.all([
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(dataSource, /id: "recall-poster"[\s\S]*?parent: "recall-plugins"/);
+  assert.match(dataSource, /id: "recall-coupon"[\s\S]*?parent: "recall-plugins"/);
+  assert.match(pageSource, /mainScreens\.filter\(\(item\) => item\.module === screen\.module && !item\.parent\)/);
+  assert.doesNotMatch(dataSource, /id: "recall-review"/);
+  assert.doesNotMatch(dataSource, /id: "recall-review-detail"/);
+  assert.doesNotMatch(screenSource, /case "recall-review"/);
+  assert.doesNotMatch(screenSource, /function ReviewScreen/);
+  assert.doesNotMatch(detailSource, /RecallReviewDetail/);
+  assert.doesNotMatch(detailSource, /只提交这一条给店长审核/);
+  assert.match(screenSource, /保存并设为可使用/);
+  assert.doesNotMatch(dataSource, /两项子设置|单独的功能入口/);
+  assert.doesNotMatch(screenSource, /03-05 下的一项设置/);
+  assert.doesNotMatch(screenSource, /defaultChecked disabled/);
+  assert.match(screenSource, /posterStatus: "使用中"/);
+  assert.match(screenSource, /workflowMemory\.posterStatus = "已保存并使用"/);
+  assert.match(screenSource, /本店每天最多可预约多少户/);
+  assert.doesNotMatch(screenSource, /厦门每天最多可预约多少户/);
+});
+
+test("merges 03-04 into D13 and removes unsupported detail actions", async () => {
+  const [screenSource, detailSource, dataSource] = await Promise.all([
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.doesNotMatch(dataSource, /id: "recall-cadence",/);
+  assert.doesNotMatch(screenSource, /case "recall-cadence"/);
+  assert.doesNotMatch(screenSource, /function CadenceScreen/);
+  assert.match(dataSource, /id: "recall-customer-detail"[\s\S]*?查看客户并安排后续内容/);
+  assert.match(dataSource, /id: "recall-cadence-detail"[\s\S]*?parent: "recall-customer-detail"/);
+  assert.match(detailSource, /以前怎么沟通/);
+  assert.match(detailSource, /接下来发送什么/);
+  assert.match(detailSource, /客户明确拒绝，停止自动联系/);
+  assert.doesNotMatch(detailSource, /继续按原计划自动跟进/);
+  assert.doesNotMatch(detailSource, /按原计划继续/);
+  assert.doesNotMatch(detailSource, /转给销售继续跟进/);
+  assert.doesNotMatch(detailSource, /交给销售人工查看/);
+  assert.doesNotMatch(detailSource, /不选这条，继续看下一条/);
+  assert.doesNotMatch(detailSource, /声音还是不对，只重做口播/);
+  assert.match(detailSource, /保存并放回客户计划/);
+  assert.match(detailSource, /到设定时间自动发送/);
+  assert.doesNotMatch(detailSource, /保存这条消息设计/);
+  assert.match(screenSource, /cadenceUpdateKey\(customerName, touchNumber\)/);
+  assert.match(screenSource, /demo-cadence-message-status-request/);
+  assert.match(detailSource, /const examples: Record<string/);
+  assert.match(detailSource, /demo-cadence-message-status-response/);
+  assert.match(detailSource, /demo-cadence-source-status-response/);
+  assert.match(detailSource, /来源已暂停/);
+  assert.match(detailSource, /资料已暂停，不能修改/);
+});
+
+test("keeps the 02-03 score rule internally consistent", async () => {
+  const [screenSource, dataSource] = await Promise.all([
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(screenSource, /\(scores\[item\] \?\? 5\) < 3/);
+  assert.match(screenSource, /有 2 分或以下/);
+  assert.match(dataSource, /低于 3 分/);
+  assert.doesNotMatch(screenSource, /有 3 分或以下/);
 });
