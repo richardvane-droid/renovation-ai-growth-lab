@@ -1,0 +1,144 @@
+{
+  "license": {
+    "name": "Pexels License",
+    "url": "https://www.pexels.com/license/"
+  },
+  "stockFrames": [
+    {
+      "file": "public/video-previews/stock/kitchen-countertop.jpg",
+      "videoPage": "https://www.pexels.com/video/modern-kitchen-interior-10216191/",
+      "usedFor": ["33㎡钻石厨房：台面多出 1.8 米"]
+    },
+    {
+      "file": "public/video-previews/stock/home-walkthrough.jpg",
+      "videoPage": "https://www.pexels.com/video/modern-minimalist-apartment-interior-tour-35308496/",
+      "usedFor": ["118㎡原木风全屋定制完工实拍", "118㎡完工全景.mp4"]
+    },
+    {
+      "file": "public/video-previews/stock/package-materials.jpg",
+      "videoPage": "https://www.pexels.com/video/interior-design-of-a-home-kitchen-3444432/",
+      "usedFor": ["568 元/㎡套餐到底包含什么"]
+    },
+    {
+      "file": "public/video-previews/stock/child-bedroom.jpg",
+      "videoPage": "https://www.pexels.com/video/a-child-s-room-with-toys-3676772/",
+      "usedFor": ["8㎡儿童房收纳翻倍方案", "儿童房收纳改造.mp4"]
+    },
+    {
+      "file": "public/video-previews/stock/wood-samples.jpg",
+      "videoPage": "https://www.pexels.com/video/variety-of-wooden-samples-on-display-7505107/",
+      "usedFor": ["ENF 板材怎么选：三个误区"]
+    },
+    {
+      "file": "public/video-previews/stock/cabinet-hinge.jpg",
+      "videoPage": "https://www.pexels.com/video/measuring-a-piece-of-wood-5967525/",
+      "usedFor": ["安装现场：柜门缝隙做到 2mm"]
+    },
+    {
+      "file": "public/video-previews/stock/cream-interior.jpg",
+      "videoPage": "https://www.pexels.com/video/cozy-modern-bedroom-interior-with-plush-bedding-36991696/",
+      "usedFor": ["奶油风翻车的 5 个细节"]
+    },
+    {
+      "file": "public/video-previews/stock/room-renovation.jpg",
+      "videoPage": "https://www.pexels.com/video/a-footage-of-a-room-under-renovation-6473920/",
+      "usedFor": ["旧房翻新先做柜体还是水电"]
+    },
+    {
+      "file": "public/video-previews/stock/floorplan-layout.jpg",
+      "videoPage": "https://www.pexels.com/video/person-showing-the-house-floor-plan-7646445/",
+      "usedFor": ["同户型改造前后动线对比"]
+    },
+    {
+      "file": "public/video-previews/stock/showroom-tour.jpg",
+      "videoPage": "https://www.pexels.com/video/real-estate-agent-showing-off-the-house-8482329/",
+      "usedFor": ["店长带看：漳州龙文展厅"]
+    },
+    {
+      "file": "public/video-previews/stock/kitchen-installation.jpg",
+      "videoPage": "https://www.pexels.com/video/modern-kitchen-installation-with-ladder-34572332/",
+      "usedFor": ["龙文店厨房安装实拍.mp4"]
+    },
+    {
+      "file": "public/video-previews/stock/edge-finishing.jpg",
+      "videoPage": "https://www.pexels.com/video/a-person-holding-a-wood-plank-5758785/",
+      "usedFor": ["衣柜封边细节.mov"]
+    },
+    {
+      "file": "public/video-previews/stock/spokesperson-front.jpg",
+      "videoPage": "https://www.pexels.com/video/man-talking-to-camera-7262665/",
+      "frameAtSeconds": 2,
+      "usedFor": ["正面讲话", "正面口播", "正面照片"]
+    },
+    {
+      "file": "public/video-previews/stock/spokesperson-gesture.jpg",
+      "videoPage": "https://www.pexels.com/video/man-talking-to-camera-7262665/",
+      "frameAtSeconds": 10,
+      "usedFor": ["自然动作", "转身展示"]
+    },
+    {
+      "file": "public/video-previews/stock/spokesperson-tones.jpg",
+      "videoPage": "https://www.pexels.com/video/man-talking-to-camera-7262665/",
+      "frameAtSeconds": 20,
+      "usedFor": ["不同语气示范", "四种语气口播"]
+    },
+    {
+      "file": "public/video-previews/stock/spokesperson-example.jpg",
+      "videoPage": "https://www.pexels.com/video/man-talking-to-camera-7262665/",
+      "frameAtSeconds": 31,
+      "usedFor": ["合格示例"]
+    }
+  ],
+  "localVideoFrames": [
+    {
+      "file": "public/video-previews/demo-video-slices.jpg",
+      "video": "public/demos/video-slices.mp4",
+      "frameAtSeconds": 7.5
+    },
+    {
+      "file": "public/video-previews/demo-video-spokesperson.jpg",
+      "video": "public/demos/video-spokesperson.mp4",
+      "frameAtSeconds": 10.5
+    },
+    {
+      "file": "public/video-previews/demo-video-result.jpg",
+      "video": "public/demos/video-result.mp4",
+      "frameAtSeconds": 4.5
+    },
+    {
+      "file": "public/video-previews/demo-sales-training.jpg",
+      "video": "public/demos/sales-training.mp4",
+      "frameAtSeconds": 7.5
+    },
+    {
+      "file": "public/video-previews/demo-sales-simulation.jpg",
+      "video": "public/demos/sales-simulation.mp4",
+      "frameAtSeconds": 7.5
+    },
+    {
+      "file": "public/video-previews/demo-sales-quality.jpg",
+      "video": "public/demos/sales-quality.mp4",
+      "frameAtSeconds": 4.5
+    },
+    {
+      "file": "public/video-previews/demo-sales-plugins.jpg",
+      "video": "public/demos/sales-plugins.mp4",
+      "frameAtSeconds": 7.5
+    },
+    {
+      "file": "public/video-previews/demo-recall-poster.jpg",
+      "video": "public/demos/recall-poster.mp4",
+      "frameAtSeconds": 1.5
+    },
+    {
+      "file": "public/video-previews/demo-recall-coupon.jpg",
+      "video": "public/demos/recall-coupon.mp4",
+      "frameAtSeconds": 10.5
+    },
+    {
+      "file": "public/video-previews/finished-kitchen.jpg",
+      "video": "public/demos/finished-kitchen-video.mp4",
+      "frameAtSeconds": 5
+    }
+  ]
+}

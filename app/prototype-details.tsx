@@ -2,6 +2,11 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { Screen } from "./prototype-data";
+import {
+  sliceSegmentPosters,
+  spokespersonPosterByMaterial,
+  videoPosterForTitle,
+} from "./video-preview-data";
 
 export type PrototypeDetailContext = {
   videoTitle?: string;
@@ -313,11 +318,23 @@ function MediaExample({
   onPlay: () => void;
   portrait?: boolean;
 }) {
+  const poster = videoPosterForTitle(title)
+    || "./video-previews/stock/kitchen-countertop.jpg";
   return (
-    <div style={{ ...ui.media, minHeight: portrait ? 300 : 190 }}>
-      <button aria-label={`播放${title}`} onClick={onPlay} style={ui.mediaPlay} type="button">▶</button>
-      <b style={{ fontSize: 15 }}>{title}</b>
-      <small style={{ color: "#eee", fontSize: 12 }}>{meta}</small>
+    <div style={{ ...ui.media, minHeight: portrait ? 300 : 190, overflow: "hidden", padding: 0, position: "relative" }}>
+      {/* The unoptimised image is the exact frame supplied by the source video. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        alt={`${title}的视频预览帧`}
+        src={poster}
+        style={{ height: "100%", inset: 0, objectFit: "cover", position: "absolute", width: "100%" }}
+      />
+      <span aria-hidden="true" style={{ background: "linear-gradient(180deg,rgba(0,0,0,.08),rgba(0,0,0,.82))", inset: 0, position: "absolute" }} />
+      <button aria-label={`播放${title}`} onClick={onPlay} style={{ ...ui.mediaPlay, position: "relative", zIndex: 1 }} type="button">▶</button>
+      <span style={{ alignSelf: "end", display: "grid", gap: 5, padding: 16, position: "relative", width: "100%", zIndex: 1 }}>
+        <b style={{ fontSize: 15 }}>{title}</b>
+        <small style={{ color: "#eee", fontSize: 12 }}>{meta}</small>
+      </span>
     </div>
   );
 }
@@ -451,9 +468,18 @@ function VideoSliceDetail({ screen, goTo, notify, context }: DetailPageProps) {
         </div>
         <div style={ui.rows}>
           {segments.map(([time, description], index) => (
-            <div key={time} style={{ ...ui.row, gridTemplateColumns: "28px 72px minmax(0, 1fr) auto" }}>
+            <div key={time} style={{ ...ui.row, gridTemplateColumns: "28px 118px minmax(0, 1fr) auto" }}>
               <input aria-label={`保留${time}片段`} checked={kept[index]} onChange={() => toggle(index)} type="checkbox" />
-              <Button onClick={() => notify(`正在播放 ${time} 片段`)}>▶ {time}</Button>
+              <button
+                aria-label={`播放 ${time}：${description}`}
+                onClick={() => notify(`正在播放 ${time} 片段`)}
+                style={{ background: "#111", border: 0, borderRadius: 7, cursor: "pointer", height: 66, overflow: "hidden", padding: 0, position: "relative", width: 112 }}
+                type="button"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={`${description}的视频预览帧`} src={sliceSegmentPosters[index]} style={{ height: "100%", objectFit: "cover", width: "100%" }} />
+                <span style={{ background: "rgba(0,0,0,.7)", bottom: 4, color: "#fff", fontSize: 10, left: 4, padding: "2px 4px", position: "absolute" }}>▶ {time}</span>
+              </button>
               <label style={ui.field}>
                 <span>这段拍了什么</span>
                 <input defaultValue={description} style={ui.input} />
@@ -526,12 +552,30 @@ function VideoSpokespersonDetail({ screen, goTo, notify, context }: DetailPagePr
           {materials.map(([item, standard, status], index) => {
             const isVideo = requiredVideoChecks.includes(item);
             const checked = watched.includes(item);
+            const poster = item === "转身展示"
+              ? spokespersonPosterByMaterial["自然动作"]
+              : item === "四种语气口播"
+                ? spokespersonPosterByMaterial["不同语气示范"]
+                : spokespersonPosterByMaterial["正面讲话"];
+            const markChecked = () => {
+              setWatched((current) => current.includes(item) ? current : [...current, item]);
+              notify(isVideo ? `正在播放检查：${item}` : `正在查看照片：${item}`);
+            };
             return (
-            <div key={item} style={{ ...ui.row, gridTemplateColumns: "28px 90px minmax(0, 1fr) auto auto" }}>
+            <div key={item} style={{ ...ui.row, gridTemplateColumns: "28px 64px 90px minmax(0, 1fr) auto auto" }}>
               <i style={ui.numbered}>{index + 1}</i>
+              <button
+                aria-label={isVideo ? `播放${item}预览` : `查看${item}`}
+                onClick={markChecked}
+                style={{ background: "#111", border: 0, borderRadius: 7, cursor: "pointer", height: 78, overflow: "hidden", padding: 0, width: 58 }}
+                type="button"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={isVideo ? `${item}的视频预览帧` : `${item}预览`} src={poster} style={{ height: "100%", objectFit: "cover", width: "100%" }} />
+              </button>
               <b>{item}</b>
               <span>{standard}</span>
-              <Button onClick={() => { setWatched((current) => current.includes(item) ? current : [...current, item]); notify(isVideo ? `正在播放检查：${item}` : `正在查看照片：${item}`); }}>{checked ? isVideo ? "✓ 视频已检查" : "✓ 照片已查看" : isVideo ? "▶ 播放检查" : "查看照片"}</Button>
+              <Button onClick={markChecked}>{checked ? isVideo ? "✓ 视频已检查" : "✓ 照片已查看" : isVideo ? "▶ 播放检查" : "查看照片"}</Button>
               <label style={{ alignItems: "center", display: "flex", gap: 5 }}>
                 <input checked={needsRetake.includes(item)} onChange={() => toggleRetake(item)} type="checkbox" />
                 {status === "建议重拍" ? "要重拍" : "标记重拍"}
@@ -684,7 +728,7 @@ function VideoResultDetail({ screen, goTo, notify }: DetailPageProps) {
     >
       <div style={ui.twoColumns}>
         <div style={ui.stack}>
-          <video controls onEnded={() => { setWatched(true); notify("已记录：店长把第 3 版播放到结尾"); }} playsInline preload="metadata" style={{ borderRadius: 9, width: "100%" }}>
+          <video controls onEnded={() => { setWatched(true); notify("已记录：店长把第 3 版播放到结尾"); }} playsInline poster="./video-previews/finished-kitchen.jpg" preload="metadata" style={{ borderRadius: 9, width: "100%" }}>
             <source src="./demos/finished-kitchen-video.mp4" type="video/mp4" />
             当前浏览器无法播放，可下载后查看。
           </video>

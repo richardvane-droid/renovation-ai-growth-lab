@@ -25,6 +25,7 @@ type DetailContext = Record<string, string>;
 
 type PageDemo = {
   src: string;
+  poster: string;
   title: string;
   duration: string;
 };
@@ -32,46 +33,55 @@ type PageDemo = {
 const pageDemos: Partial<Record<string, PageDemo>> = {
   "video-slices": {
     src: "./demos/video-slices.mp4",
+    poster: "./video-previews/demo-video-slices.jpg",
     title: "上传实拍并检查拆分状态",
     duration: "12 秒",
   },
   "video-spokesperson": {
     src: "./demos/video-spokesperson.mp4",
+    poster: "./video-previews/demo-video-spokesperson.jpg",
     title: "准备照片和 3 段出镜视频",
     duration: "12 秒",
   },
   "video-result": {
     src: "./demos/video-result.mp4",
+    poster: "./video-previews/demo-video-result.jpg",
     title: "看完、核对并下载推荐版",
     duration: "12 秒",
   },
   "sales-training": {
     src: "./demos/sales-training.mp4",
+    poster: "./video-previews/demo-sales-training.jpg",
     title: "上传并核对门店资料",
     duration: "12 秒",
   },
   "sales-simulation": {
     src: "./demos/sales-simulation.mp4",
+    poster: "./video-previews/demo-sales-simulation.jpg",
     title: "评分并改正低分回答",
     duration: "12 秒",
   },
   "sales-quality": {
     src: "./demos/sales-quality.mp4",
+    poster: "./video-previews/demo-sales-quality.jpg",
     title: "核对一段可疑聊天",
     duration: "12 秒",
   },
   "sales-plugins": {
     src: "./demos/sales-plugins.mp4",
+    poster: "./video-previews/demo-sales-plugins.jpg",
     title: "配置、试运行并启用一项功能",
     duration: "12 秒",
   },
   "recall-poster": {
     src: "./demos/recall-poster.mp4",
+    poster: "./video-previews/demo-recall-poster.jpg",
     title: "设置知识海报规则",
     duration: "12 秒",
   },
   "recall-coupon": {
     src: "./demos/recall-coupon.mp4",
+    poster: "./video-previews/demo-recall-coupon.jpg",
     title: "设置量房券规则",
     duration: "12 秒",
   },
@@ -365,7 +375,7 @@ function navigationRootId(id: string) {
 function PageDemoVideo({ demo }: { demo: PageDemo }) {
   return (
     <div className="demo-player">
-      <video controls playsInline preload="metadata" aria-label={demo.title}>
+      <video controls playsInline poster={demo.poster} preload="metadata" aria-label={demo.title}>
         <source src={demo.src} type="video/mp4" />
         你的浏览器暂时不能播放这段演示，可继续阅读上方图文步骤。
       </video>

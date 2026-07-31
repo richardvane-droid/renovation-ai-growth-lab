@@ -1106,6 +1106,7 @@ select:focus-visible {
 .media-cover {
   align-items: center;
   aspect-ratio: 16 / 9;
+  background: #252525;
   border-radius: 6px;
   color: #fff;
   display: flex;
@@ -1119,7 +1120,23 @@ select:focus-visible {
   aspect-ratio: 9 / 16;
 }
 
-.media-cover > span {
+.media-cover > img {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.media-cover::after {
+  background: linear-gradient(180deg, rgba(0,0,0,.03) 45%, rgba(0,0,0,.46));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.media-cover > .media-cover-play {
   align-items: center;
   background: rgba(255,255,255,.86);
   border-radius: 50%;
@@ -1128,10 +1145,12 @@ select:focus-visible {
   font-size: 12px;
   height: 27px;
   justify-content: center;
+  position: relative;
+  z-index: 1;
   width: 27px;
 }
 
-.media-cover > small {
+.media-cover > .media-cover-duration {
   background: rgba(0,0,0,.58);
   border-radius: 3px;
   bottom: 5px;
@@ -1139,14 +1158,25 @@ select:focus-visible {
   left: 5px;
   padding: 3px 5px;
   position: absolute;
+  z-index: 1;
 }
 
-.cover-1 { background: linear-gradient(135deg,#827567,#c7b29c 48%,#4a4038); }
-.cover-2 { background: linear-gradient(135deg,#3f5147,#aabfaf 52%,#53665b); }
-.cover-3 { background: linear-gradient(135deg,#746f65,#d4c9b6 48%,#8d8071); }
-.cover-4 { background: linear-gradient(135deg,#4c5260,#a7b2c6 48%,#5d6675); }
-.cover-5 { background: linear-gradient(135deg,#6d5b55,#c5a99b 48%,#594942); }
-.cover-6 { background: linear-gradient(135deg,#60645c,#bdc2b2 48%,#51564f); }
+.media-cover.preview-unavailable {
+  background: #363636;
+}
+
+.media-cover.preview-unavailable::after {
+  display: none;
+}
+
+.media-cover > .media-cover-error {
+  color: rgba(255,255,255,.88);
+  font-size: 11px;
+  line-height: 1.45;
+  max-width: 90%;
+  padding: 7px;
+  text-align: center;
+}
 
 .video-list {
   display: grid;

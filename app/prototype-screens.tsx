@@ -8,6 +8,11 @@ import {
   videos,
 } from "./prototype-data";
 import { PrototypeDetailContent } from "./prototype-details";
+import {
+  slicePosterByFileName,
+  spokespersonPosterByMaterial,
+  videoPosterForTitle,
+} from "./video-preview-data";
 
 type ScreenProps = {
   screen: Screen;
@@ -556,21 +561,128 @@ function Progress({ value }: { value: number }) {
   );
 }
 
-function EmptyCover({
+function VideoCover({
+  alt,
   label,
-  index = 0,
   portrait = false,
+  src,
+  unavailableMessage,
 }: {
+  alt: string;
   label: string;
-  index?: number;
   portrait?: boolean;
+  src?: string;
+  unavailableMessage?: string;
 }) {
   return (
-    <div className={`media-cover cover-${(index % 6) + 1} ${portrait ? "portrait" : ""}`}>
-      <span>▶</span>
-      <small>{label}</small>
+    <div
+      aria-label={src ? undefined : `${alt}：${unavailableMessage || "暂时无法提取预览"}`}
+      className={`media-cover ${portrait ? "portrait" : ""} ${src ? "" : "preview-unavailable"}`}
+      role={src ? undefined : "img"}
+    >
+      {src ? (
+        <>
+          {/* The prototype intentionally displays the exact frame, without image optimisation altering it. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt={alt} src={src} />
+          <span aria-hidden="true" className="media-cover-play">▶</span>
+        </>
+      ) : (
+        <span className="media-cover-error">{unavailableMessage || "暂时无法提取预览"}</span>
+      )}
+      <small className="media-cover-duration">{label}</small>
     </div>
   );
+}
+
+type FileUploadPreview = {
+  duration?: string;
+  error?: string;
+  poster?: string;
+};
+
+type SliceFile = {
+  count: string;
+  duration: string;
+  name: string;
+  poster?: string;
+  previewError?: string;
+  status: string;
+};
+
+function formatVideoDuration(duration: number) {
+  if (!Number.isFinite(duration) || duration <= 0) return undefined;
+  const wholeSeconds = Math.max(1, Math.round(duration));
+  const minutes = Math.floor(wholeSeconds / 60);
+  const seconds = wholeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function extractVideoPreview(file: File): Promise<FileUploadPreview> {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    let settled = false;
+    let duration: string | undefined;
+
+    const finish = (result: FileUploadPreview) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(objectUrl);
+      resolve({ duration, ...result });
+    };
+
+    const capture = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 960 / Math.max(video.videoWidth, video.videoHeight));
+        canvas.width = Math.round(video.videoWidth * scale);
+        canvas.height = Math.round(video.videoHeight * scale);
+        if (!canvas.width || !canvas.height) {
+          finish({ error: "暂时无法提取预览" });
+          return;
+        }
+        const context = canvas.getContext("2d");
+        if (!context) {
+          finish({ error: "暂时无法提取预览" });
+          return;
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        finish({ poster: canvas.toDataURL("image/jpeg", 0.84) });
+      } catch {
+        finish({ error: "暂时无法提取预览" });
+      }
+    };
+
+    const timeout = window.setTimeout(
+      () => finish({ error: "暂时无法提取预览" }),
+      10000,
+    );
+
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.addEventListener("loadedmetadata", () => {
+      duration = formatVideoDuration(video.duration);
+    });
+    video.addEventListener("loadeddata", () => {
+      const finiteDuration = Number.isFinite(video.duration) ? video.duration : 0;
+      const targetTime = finiteDuration > 0.2
+        ? Math.min(Math.max(finiteDuration * 0.18, 0.1), finiteDuration - 0.1)
+        : 0;
+      if (targetTime === 0 || Math.abs(video.currentTime - targetTime) < 0.02) {
+        capture();
+      } else {
+        video.currentTime = targetTime;
+      }
+    }, { once: true });
+    video.addEventListener("seeked", capture, { once: true });
+    video.addEventListener("error", () => finish({ error: "暂时无法提取预览" }), { once: true });
+    video.src = objectUrl;
+  });
 }
 
 function FileUpload({
@@ -580,7 +692,7 @@ function FileUpload({
 }: {
   accept: string;
   label: string;
-  onUpload: (name: string) => void;
+  onUpload: (name: string, preview?: FileUploadPreview) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -590,9 +702,17 @@ function FileUpload({
         className="visually-hidden"
         type="file"
         accept={accept}
-        onChange={(event) => {
+        onChange={async (event) => {
+          const input = event.currentTarget;
           const file = event.target.files?.[0];
-          if (file) onUpload(file.name);
+          if (!file) return;
+          if (file.type.startsWith("video/") || accept.includes("video")) {
+            const preview = await extractVideoPreview(file);
+            onUpload(file.name, preview);
+          } else {
+            onUpload(file.name);
+          }
+          input.value = "";
         }}
       />
       <Button kind="primary" onClick={() => ref.current?.click()}>
@@ -739,7 +859,7 @@ function LabelScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
         </Button>
       </div>
       <div className="video-list">
-        {firstVideos.map((video, index) => {
+        {firstVideos.map((video) => {
           const decision = workflowMemory.labelDecisions[video.title];
           const watched = workflowMemory.labelWatched.has(video.title);
           return (
@@ -750,7 +870,11 @@ function LabelScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
               type="button"
               aria-label={`播放并判断：${video.title}`}
             >
-              <EmptyCover index={index} label={video.duration} />
+              <VideoCover
+                alt={`${video.title}的视频预览帧`}
+                label={video.duration}
+                src={videoPosterForTitle(video.title)}
+              />
             </button>
             <div className="video-copy">
               <b>{video.title}</b>
@@ -791,11 +915,11 @@ function LabelScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
 }
 
 function SliceScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
-  const [files, setFiles] = useState([
-    ["龙文店厨房安装实拍.mp4", "已完成", "12"],
-    ["衣柜封边细节.mov", "分析中", "—"],
-    ["118㎡完工全景.mp4", "已完成", "9"],
-    ["儿童房收纳改造.mp4", "已完成", "7"],
+  const [files, setFiles] = useState<SliceFile[]>([
+    { name: "龙文店厨房安装实拍.mp4", status: "已完成", count: "12", duration: "00:42", poster: slicePosterByFileName["龙文店厨房安装实拍.mp4"] },
+    { name: "衣柜封边细节.mov", status: "分析中", count: "—", duration: "00:36", poster: slicePosterByFileName["衣柜封边细节.mov"] },
+    { name: "118㎡完工全景.mp4", status: "已完成", count: "9", duration: "00:42", poster: slicePosterByFileName["118㎡完工全景.mp4"] },
+    { name: "儿童房收纳改造.mp4", status: "已完成", count: "7", duration: "00:36", poster: slicePosterByFileName["儿童房收纳改造.mp4"] },
   ]);
   return (
     <div className="stack">
@@ -807,29 +931,41 @@ function SliceScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
         <FileUpload
           accept="video/*"
           label="＋ 上传门店视频"
-          onUpload={(name) => {
-            setFiles((current) => [[name, "分析中", "—"], ...current]);
+          onUpload={(name, preview) => {
+            setFiles((current) => [{
+              count: "—",
+              duration: preview?.duration || "已上传",
+              name,
+              poster: preview?.poster,
+              previewError: preview?.error,
+              status: "分析中",
+            }, ...current]);
             notify(`${name} 已上传，正在分析`);
           }}
         />
       </div>
       <div className="asset-table">
         <div className="asset-table-head"><span>预览</span><span>视频</span><span>处理状态</span><span>可用片段数</span><span>画面内容</span><span>操作</span></div>
-        {files.map(([name, status, count], index) => (
-          <div className="asset-table-row" key={`${name}-${index}`}>
-            <EmptyCover index={index} label={index % 2 ? "00:36" : "00:42"} />
-            <div><b>{name}</b><small>{index % 2 ? "门店实拍 · 竖屏" : "工地现场 · 横屏"}</small></div>
-            <Pill tone={status === "已完成" ? "positive" : "warning"}>{status === "已完成" ? "分析完成" : "正在拆分画面"}</Pill>
-            <strong>{count}</strong>
-            <span>{status === "已完成" ? "安装工艺、空间全景、柜体细节、客户动线" : "约需 2 分钟，请勿重复上传"}</span>
+        {files.map((file, index) => (
+          <div className="asset-table-row" key={`${file.name}-${index}`}>
+            <VideoCover
+              alt={`${file.name}的视频预览帧`}
+              label={file.duration}
+              src={file.poster}
+              unavailableMessage={file.previewError}
+            />
+            <div><b>{file.name}</b><small>{index % 2 ? "门店实拍 · 竖屏" : "工地现场 · 横屏"}</small></div>
+            <Pill tone={file.status === "已完成" ? "positive" : "warning"}>{file.status === "已完成" ? "分析完成" : "正在拆分画面"}</Pill>
+            <strong>{file.count}</strong>
+            <span>{file.status === "已完成" ? "安装工艺、空间全景、柜体细节、客户动线" : "约需 2 分钟，请勿重复上传"}</span>
             <div className="row-actions">
               <button
-                disabled={status !== "已完成"}
-                onClick={() => goTo("video-slice-detail", { sourceFileName: name, segmentCount: count })}
+                disabled={file.status !== "已完成"}
+                onClick={() => goTo("video-slice-detail", { sourceFileName: file.name, segmentCount: file.count })}
               >
-                {status === "已完成" ? `检查 ${count} 个片段` : "分析完成后可检查"}
+                {file.status === "已完成" ? `检查 ${file.count} 个片段` : "分析完成后可检查"}
               </button>
-              <button onClick={() => { setFiles((current) => current.filter((_, i) => i !== index)); notify(`演示：${name} 已移出素材库`); }}>移出</button>
+              <button onClick={() => { setFiles((current) => current.filter((_, i) => i !== index)); notify(`演示：${file.name} 已移出素材库`); }}>移出</button>
             </div>
           </div>
         ))}
@@ -840,11 +976,11 @@ function SliceScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
 
 function SpokespersonScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
   useWorkflowBridge();
-  const [thirdVideoName, setThirdVideoName] = useState("");
+  const [thirdVideo, setThirdVideo] = useState<({ name: string } & FileUploadPreview) | null>(null);
   const specs = [
     ["正面讲话", "竖屏 · 30–60 秒", "镜头与眼睛同高，照着页面台词说一段门店介绍", "已完成"],
     ["自然动作", "竖屏 · 15–30 秒", "腰部以上入镜，左右转身并做自然手势", "已完成"],
-    ["不同语气示范", "横屏 · 60 秒", "分别用平静、热情、解释、邀约四种语气读示例台词", workflowMemory.spokespersonReady ? "已完成" : thirdVideoName ? "已上传，等待检查" : "待上传"],
+    ["不同语气示范", "横屏 · 60 秒", "分别用平静、热情、解释、邀约四种语气读示例台词", workflowMemory.spokespersonReady ? "已完成" : thirdVideo ? "已上传，等待检查" : "待上传"],
   ];
   return (
     <div className="spokesperson-layout">
@@ -861,21 +997,32 @@ function SpokespersonScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify
       <Card title="照着示范拍 3 段视频" caption="每一项都写明怎么拍、拍多久；不合格会给出重拍原因" className="spec-card">
         {specs.map(([title, spec, description, status], index) => (
           <div className="spec-row" key={title}>
-            <EmptyCover portrait index={index + 2} label={index === 2 ? "待上传" : "00:42"} />
+            <VideoCover
+              alt={`${title}的视频预览帧`}
+              label={index === 2 && thirdVideo ? thirdVideo.duration || "已上传" : index === 2 ? "待上传" : "00:42"}
+              portrait
+              src={index === 2 && thirdVideo ? thirdVideo.poster : spokespersonPosterByMaterial[title]}
+              unavailableMessage={index === 2 && thirdVideo ? thirdVideo.error : undefined}
+            />
             <div><b>{title}</b><span>{spec}</span><small>{description}</small></div>
             <Pill tone={status === "已完成" ? "positive" : "warning"}>{status}</Pill>
             {status === "已完成" ? (
-              <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: "杜海鹏", materialType: title, sourceReady: index === 2 && thirdVideoName ? "yes" : "no" })}>检查这项</Button>
-            ) : thirdVideoName ? (
+              <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: "杜海鹏", materialType: title, sourceReady: index === 2 && thirdVideo ? "yes" : "no" })}>检查这项</Button>
+            ) : thirdVideo ? (
               <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: "杜海鹏", materialType: title, sourceReady: "yes" })}>检查刚上传的视频</Button>
             ) : (
-              <FileUpload accept="video/*" label="上传视频" onUpload={(name) => { setThirdVideoName(name); notify(`${name} 已上传，下一步请检查画面和声音`); }} />
+              <FileUpload accept="video/*" label="上传视频" onUpload={(name, preview) => { setThirdVideo({ name, ...(preview ?? {}) }); notify(`${name} 已上传，下一步请检查画面和声音`); }} />
             )}
           </div>
         ))}
       </Card>
       <Card title="合格示例" caption="演示：杜店长介绍门店活动和板材配置" className="demo-card">
-        <EmptyCover portrait index={5} label="00:38 · 查看示例" />
+        <VideoCover
+          alt="合格出镜示例的视频预览帧"
+          label="00:38 · 查看示例"
+          portrait
+          src={spokespersonPosterByMaterial["合格示例"]}
+        />
         <p>镜头平视、安静环境、人物腰部以上入镜；开头停顿 1 秒，结尾保持自然表情 2 秒。</p>
       </Card>
     </div>
@@ -924,7 +1071,12 @@ function TopVideosScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">)
               onClick={() => goTo("video-competitor-detail", { videoTitle: video.title, account: video.account, rank: String(index + 1), duration: video.duration })}
               type="button"
             >
-              <EmptyCover portrait index={index} label={video.duration} />
+              <VideoCover
+                alt={`${video.title}的视频预览帧`}
+                label={video.duration}
+                portrait
+                src={videoPosterForTitle(video.title)}
+              />
             </button>
             <div className="rank-badge">#{index + 1}</div>
             <b>{video.title}</b>
@@ -1041,7 +1193,7 @@ function ResultScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
   return (
     <div className="result-layout">
       <Card title="今天的成片（演示）" caption="42 秒 · 必须播放到结尾，再完成右侧人工确认" className="result-player">
-        <video controls onEnded={() => { setWatched(true); notify("已记录：店长把成片从头播放到结尾"); }} playsInline preload="metadata">
+        <video controls onEnded={() => { setWatched(true); notify("已记录：店长把成片从头播放到结尾"); }} playsInline poster="./video-previews/finished-kitchen.jpg" preload="metadata">
           <source src="./demos/finished-kitchen-video.mp4" type="video/mp4" />
           当前浏览器无法播放，可下载后查看。
         </video>

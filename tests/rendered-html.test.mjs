@@ -84,6 +84,59 @@ test("ships only page-specific operation demos", async () => {
   assert.doesNotMatch(pageSource, /Record<ModuleKey,\s*\{\s*src:/);
 });
 
+test("uses real video frames for every video preview", async () => {
+  const [pageSource, screenSource, detailSource, mappingSource, css, sourceManifestText] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/video-preview-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/video-preview-sources.json", import.meta.url), "utf8"),
+  ]);
+  const sourceManifest = JSON.parse(sourceManifestText);
+  const expectedTitles = [
+    "33㎡钻石厨房：台面多出 1.8 米",
+    "118㎡原木风全屋定制完工实拍",
+    "568 元/㎡套餐到底包含什么",
+    "8㎡儿童房收纳翻倍方案",
+    "ENF 板材怎么选：三个误区",
+    "安装现场：柜门缝隙做到 2mm",
+    "奶油风翻车的 5 个细节",
+    "旧房翻新先做柜体还是水电",
+    "同户型改造前后动线对比",
+    "店长带看：漳州龙文展厅",
+  ];
+
+  assert.equal(sourceManifest.stockFrames.length, 16);
+  assert.equal(sourceManifest.localVideoFrames.length, 10);
+  for (const title of expectedTitles) {
+    assert.match(mappingSource, new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+
+  for (const item of [...sourceManifest.stockFrames, ...sourceManifest.localVideoFrames]) {
+    const image = await readFile(new URL(`../${item.file}`, import.meta.url));
+    assert.ok(
+      image[0] === 0xff && image[1] === 0xd8 && image.at(-2) === 0xff && image.at(-1) === 0xd9,
+      `${item.file} must be a complete JPEG frame`,
+    );
+  }
+
+  assert.match(pageSource, /poster=\{demo\.poster\}/);
+  assert.match(screenSource, /videoPosterForTitle\(video\.title\)/);
+  assert.match(screenSource, /slicePosterByFileName/);
+  assert.match(screenSource, /spokespersonPosterByMaterial/);
+  assert.match(screenSource, /extractVideoPreview\(file: File\)/);
+  assert.match(screenSource, /canvas\.toDataURL\("image\/jpeg"/);
+  assert.match(screenSource, /暂时无法提取预览/);
+  assert.match(detailSource, /videoPosterForTitle\(title\)/);
+  assert.match(detailSource, /sliceSegmentPosters\[index\]/);
+  assert.match(detailSource, /spokespersonPosterByMaterial/);
+  assert.match(detailSource, /poster="\.\/video-previews\/finished-kitchen\.jpg"/);
+  assert.doesNotMatch(screenSource, /EmptyCover/);
+  assert.doesNotMatch(css, /\.cover-[1-6]\s*\{/);
+  assert.match(css, /\.media-cover > img\s*\{[\s\S]*?object-fit:\s*cover/);
+});
+
 test("uses one continuous page scroll instead of a boxed inner scroller", async () => {
   const css = await readFile(
     new URL("../app/globals.css", import.meta.url),
