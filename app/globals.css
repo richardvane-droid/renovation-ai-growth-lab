@@ -95,11 +95,12 @@ select:focus-visible {
   color: #fff;
   display: flex;
   flex: 0 0 auto;
-  font-size: 16px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 800;
   height: 40px;
   justify-content: center;
+  letter-spacing: 0.04em;
   width: 40px;
 }
 

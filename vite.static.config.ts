@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   root: "static",
-  base: "/renovation-ai-growth-lab/",
+  base: "/akke-ai-growth-workbench-prototype/",
   publicDir: "../public",
   plugins: [react()],
   build: {

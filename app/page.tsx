@@ -184,7 +184,7 @@ export default function PrototypeHub() {
       <WorkflowEventBridge />
       <aside className="sidebar">
         <div className="brand">
-          <i>店</i>
+          <i>AKKE</i>
           <div>
             <b>门店营销助手</b>
             <span>给全屋定制店长的操作演示</span>
