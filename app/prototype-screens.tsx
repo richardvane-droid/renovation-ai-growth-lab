@@ -17,6 +17,7 @@ type ScreenProps = {
 };
 
 type LabelDecision = "match" | "no";
+type ChampionLineDecision = "borrowable" | "not-borrowable";
 type TrainingDocUpdate = { status: string; summary: string; conflictChoices?: string; parsedValues?: string };
 type CadenceUpdate = {
   attachment?: string;
@@ -59,6 +60,7 @@ const workflowMemory = {
   trainingDocs: {} as Record<string, TrainingDocUpdate>,
   removedTrainingDocs: new Set<string>(),
   championDecisions: {} as Record<string, "included" | "excluded">,
+  championLineDecisions: {} as Record<string, Record<string, ChampionLineDecision>>,
   faqDetails: {} as Record<string, FaqUpdate>,
   approvedReviews: new Set<string>(),
   verifiedReviews: new Set<string>(),
@@ -92,6 +94,28 @@ function detailString(detail: Record<string, unknown>, ...keys: string[]) {
     if (typeof value === "string" && value.trim()) return value.trim();
   }
   return "";
+}
+
+function parseChampionLineDecisions(value: string) {
+  if (!value) return {} as Record<string, ChampionLineDecision>;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, ChampionLineDecision] =>
+        entry[1] === "borrowable" || entry[1] === "not-borrowable"
+      ),
+    );
+  } catch {
+    return {} as Record<string, ChampionLineDecision>;
+  }
+}
+
+function championLineCounts(conversationId: string) {
+  const decisions = Object.values(workflowMemory.championLineDecisions[conversationId] ?? {});
+  return {
+    borrowable: decisions.filter((decision) => decision === "borrowable").length,
+    notBorrowable: decisions.filter((decision) => decision === "not-borrowable").length,
+  };
 }
 
 function reviewKey(customerName: string, messageType: string) {
@@ -245,13 +269,34 @@ function ensureWorkflowEventBridge() {
   );
 
   listenWorkflowEvents(
+    ["demo-champion-line-decision"],
+    (event) => {
+      const detail = detailRecord(event);
+      const conversationId = detailString(detail, "conversationId");
+      const lineKey = detailString(detail, "lineKey");
+      const decision = detailString(detail, "decision");
+      if (!conversationId || !lineKey || (decision !== "borrowable" && decision !== "not-borrowable")) return;
+      workflowMemory.championLineDecisions[conversationId] = {
+        ...(workflowMemory.championLineDecisions[conversationId] ?? {}),
+        [lineKey]: decision,
+      };
+      publishWorkflowChange();
+    },
+  );
+
+  listenWorkflowEvents(
     ["demo-champion-sample-decision", "prototype:champion-sample-decision"],
     (event) => {
       const detail = detailRecord(event);
       const sampleName = detailString(detail, "sampleName", "name");
+      const conversationId = detailString(detail, "conversationId") || sampleName;
       const decision = detailString(detail, "decision");
       if (!sampleName || (decision !== "included" && decision !== "excluded")) return;
       workflowMemory.championDecisions[sampleName] = decision;
+      const lineDecisions = parseChampionLineDecisions(detailString(detail, "lineDecisions"));
+      if (Object.keys(lineDecisions).length > 0) {
+        workflowMemory.championLineDecisions[conversationId] = lineDecisions;
+      }
       publishWorkflowChange();
     },
   );
@@ -1196,19 +1241,64 @@ function ChampionScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) 
   const confirmedCount = decisions.filter((decision) => decision === "included").length;
   const decidedCount = confirmedCount + excludedCount;
   const allDecided = decidedCount === samples.length;
+  const includedLineCounts = samples.reduce(
+    (totals, row, index) => {
+      if (workflowMemory.championDecisions[`示例 ${index + 1}`] !== "included") return totals;
+      const counts = championLineCounts(row[0]);
+      return {
+        borrowable: totals.borrowable + counts.borrowable,
+        notBorrowable: totals.notBorrowable + counts.notBorrowable,
+      };
+    },
+    { borrowable: 0, notBorrowable: 0 },
+  );
   return (
     <div className="stack">
       <div className="filter-bar">
-        <div><b>已逐条决定 {decidedCount} / {samples.length} 段聊天</b><span>准备学习 {confirmedCount} 段 · 已排除 {excludedCount} 段 · 还需检查 {samples.length - decidedCount} 段；姓名、电话和详细地址已遮住</span></div>
+        <div>
+          <b>已检查 {decidedCount} / {samples.length} 段聊天</b>
+          <span>
+            {confirmedCount} 段参与学习 · {excludedCount} 段排除 ·
+            可借鉴 {includedLineCounts.borrowable} 句 · 不建议 {includedLineCounts.notBorrowable} 句 ·
+            还需检查 {samples.length - decidedCount} 段
+          </span>
+        </div>
         <FileUpload accept=".csv,.xlsx,.json" label="＋ 放入企微聊天" onUpload={(name) => notify(`${name} 已放入，客户隐私正在自动遮住`)} />
-        <Button disabled={!allDecided || confirmedCount === 0} kind="primary" onClick={() => notify(`已确认学习 ${confirmedCount} 段聊天；被排除的 ${excludedCount} 段不会用于机器人学习`)}>{!allDecided ? `还要检查 ${samples.length - decidedCount} 段` : confirmedCount === 0 ? "没有可学习的聊天，请重新检查" : `确认学习 ${confirmedCount} 段聊天`}</Button>
+        <Button disabled={!allDecided || confirmedCount === 0} kind="primary" onClick={() => notify(`已确认学习 ${includedLineCounts.borrowable} 句销售回复；${includedLineCounts.notBorrowable} 句不参与学习`)}>{!allDecided ? `还要检查 ${samples.length - decidedCount} 段` : confirmedCount === 0 ? "没有可学习的聊天，请重新检查" : `确认学习 ${includedLineCounts.borrowable} 句回复`}</Button>
       </div>
+      <p className="champion-default-note">打开聊天后，销售回复默认“可借鉴”；只需把不妥的句子改为“不建议借鉴”。客户原话不会作为销售话术。</p>
       <div className="sample-table">
-        <div><b>编号</b><b>客户情况</b><b>实际结果</b><b>值得学习的做法</b><b>操作</b></div>
+        <div><b>编号</b><b>客户情况</b><b>实际结果</b><b>标注结果</b><b>操作</b></div>
         {samples.map((row, index) => {
           const sampleName = `示例 ${index + 1}`;
           const decision = workflowMemory.championDecisions[sampleName];
-          return <div key={row[0]}><span>{sampleName}</span><span>{row[1]}</span><Pill tone={row[2] === "到店" ? "positive" : "neutral"}>{row[2]}</Pill><span>{decision === "included" ? `已确认值得学习：${row[3]}` : decision === "excluded" ? `已排除，不会用于学习：${row[3]}` : row[3]}</span><button onClick={() => goTo("sales-champion-detail", { sampleName, customerName: row[1], outcome: row[2] })}>{decision === "included" ? "已作为学习示例 · 查看 ›" : decision === "excluded" ? "已排除 · 查看 ›" : "看完整聊天 ›"}</button></div>;
+          const lineCounts = championLineCounts(row[0]);
+          const lineDecisions = workflowMemory.championLineDecisions[row[0]] ?? {};
+          return (
+            <div key={row[0]}>
+              <span>{sampleName}</span>
+              <span>{row[1]}</span>
+              <Pill tone={row[2] === "到店" ? "positive" : "neutral"}>{row[2]}</Pill>
+              <span>
+                {decision === "included"
+                  ? `${lineCounts.borrowable} 句可借鉴 · ${lineCounts.notBorrowable} 句不建议`
+                  : decision === "excluded"
+                    ? "整段已排除"
+                    : row[3]}
+              </span>
+              <button
+                onClick={() => goTo("sales-champion-detail", {
+                  conversationId: row[0],
+                  customerName: row[1],
+                  lineDecisions: JSON.stringify(lineDecisions),
+                  outcome: row[2],
+                  sampleName,
+                })}
+              >
+                {decision === "included" ? "已标注 · 查看 ›" : decision === "excluded" ? "已排除 · 查看 ›" : "逐句检查 ›"}
+              </button>
+            </div>
+          );
         })}
       </div>
     </div>

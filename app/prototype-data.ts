@@ -19,9 +19,9 @@ export const moduleMeta: Record<
   ModuleKey,
   { index: string; label: string; caption: string }
 > = {
-  video: { index: "01", label: "短视频获客", caption: "8 步：前 4 步只设置一次，后 4 步每天使用" },
-  sales: { index: "02", label: "企微自动接待", caption: "9 步：先教会机器人，再每天检查" },
-  recall: { index: "03", label: "沉默客户跟进", caption: "8 步：准备内容、安排跟进、发送前店长确认" },
+  video: { index: "01", label: "短视频获客", caption: "8 步" },
+  sales: { index: "02", label: "企微自动接待", caption: "9 步" },
+  recall: { index: "03", label: "沉默客户跟进", caption: "8 步" },
 };
 
 export const mainScreens: Screen[] = [
@@ -183,18 +183,18 @@ export const mainScreens: Screen[] = [
     id: "sales-champion",
     module: "sales",
     index: "02",
-    title: "选 10 段沟通效果好的企微聊天",
+    title: "上传并检查 10 段销售聊天",
     phase: "引导流程",
-    summary: "把店里沟通效果好的聊天放进来。系统会先遮住姓名、电话和详细地址，你只需确认客户结果和关键几句话。",
-    output: "优秀销售沟通示例",
+    summary: "放入沟通效果好的聊天，确认隐私和客户结果，再把不得体的销售回复标为“不建议借鉴”。",
+    output: "逐句核对过的销售沟通示例",
     duration: "15 分钟",
     instructions: [
       "点“放入企微聊天”，选择店里沟通效果好的记录",
       "检查姓名、电话和详细地址是否已自动遮住",
       "确认实际结果：到店、量房、继续沟通或未成交",
-      "圈出“问需求、讲依据、邀约”的关键话语",
+      "销售回复默认可借鉴；不妥的句子改为“不建议借鉴”",
     ],
-    done: ["已选满 10 段聊天", "客户隐私已遮住", "每段实际结果和关键话语都已确认"],
+    done: ["已选满 10 段聊天", "客户隐私已遮住", "每句销售回复都已确认"],
   },
   {
     id: "sales-simulation",
@@ -512,12 +512,12 @@ export const detailScreens: Screen[] = [
     done: ["重点内容与原文件一致", "说法不一致为 0", "有效期和负责人已填写"], detail: true,
   },
   {
-    id: "sales-champion-detail", module: "sales", index: "D08", title: "拆解一段优秀销售聊天",
+    id: "sales-champion-detail", module: "sales", index: "D08", title: "逐句确认这段销售聊天",
     parent: "sales-champion", phase: "详情页",
-    summary: "看销售顾问如何先问需求、再给依据、最后自然邀约，并确认客户隐私已经遮住。",
-    output: "可学习的销售做法", duration: "4 分钟",
-    instructions: ["检查客户隐私已遮住", "阅读完整聊天和实际结果", "标出问需求、讲依据和邀约话语", "确认后保存"],
-    done: ["隐私检查通过", "关键话语已标出", "实际客户结果已确认"], detail: true,
+    summary: "客户原话只作背景；逐句决定哪些销售回复可以借鉴。",
+    output: "逐句核对过的销售回复", duration: "4 分钟",
+    instructions: ["检查客户隐私已遮住", "阅读完整聊天和实际结果", "把不妥的销售回复改为“不建议借鉴”", "确认后保存"],
+    done: ["隐私检查通过", "每句销售回复都已确认", "实际客户结果已确认"], detail: true,
   },
   {
     id: "sales-simulation-detail", module: "sales", index: "D09", title: "查看评分理由并改写回答",

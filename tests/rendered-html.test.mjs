@@ -44,7 +44,8 @@ test("server-renders the store marketing assistant", async () => {
   assert.match(html, />企微自动接待<\/b>/);
   assert.match(html, />沉默客户跟进<\/b>/);
 
-  assert.match(html, /页面里的客户、金额、视频和发送时间都只是示例/);
+  assert.match(html, /演示模式/);
+  assert.match(html, /刷新页面可恢复初始数据/);
   assert.match(html, /不会向真实客户发送消息/);
   assert.match(html, /还要检查 10 段/);
   assert.match(html, /保存量房券规则/);
@@ -109,4 +110,47 @@ test("uses one continuous page scroll instead of a boxed inner scroller", async 
   assert.match(scrollBlock, /border:\s*0/);
   assert.match(scrollBlock, /overflow:\s*visible/);
   assert.doesNotMatch(scrollBlock, /overflow:\s*auto/);
+});
+
+test("keeps the shared page structure concise", async () => {
+  const pageSource = await readFile(
+    new URL("../app/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(pageSource, />操作要点<\/h3>/);
+  assert.match(pageSource, /className="completion-inline"/);
+  assert.match(pageSource, />演示模式<\/b>/);
+  assert.doesNotMatch(pageSource, /taskTitle\(/);
+  assert.doesNotMatch(pageSource, /goal-card/);
+  assert.doesNotMatch(pageSource, /done-card/);
+  assert.doesNotMatch(pageSource, /details-toggle/);
+  assert.doesNotMatch(pageSource, /示例与详细记录 ·/);
+  assert.doesNotMatch(pageSource, /演示：只在本页/);
+  assert.doesNotMatch(pageSource, /复制本页链接/);
+  assert.doesNotMatch(pageSource, /杜老板/);
+});
+
+test("marks each sales reply as borrowable by default and keeps reviews per conversation", async () => {
+  const [detailSource, screenSource, dataSource] = await Promise.all([
+    readFile(new URL("../app/prototype-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(detailSource, /saved\[lineKey\] \?\? "borrowable"/);
+  assert.match(detailSource, /speaker === "销售顾问"/);
+  assert.match(detailSource, /aria-pressed=\{lineDecision === "borrowable"\}/);
+  assert.match(detailSource, /✓ 可借鉴/);
+  assert.match(detailSource, /不建议借鉴/);
+  assert.match(detailSource, /客户原话只作背景，不会作为销售话术/);
+  assert.match(detailSource, /整段都不参与学习/);
+
+  assert.match(screenSource, /championLineDecisions: \{\} as Record<string, Record<string, ChampionLineDecision>>/);
+  assert.match(screenSource, /\["demo-champion-line-decision"\]/);
+  assert.match(screenSource, /conversationId: row\[0\]/);
+  assert.match(screenSource, /lineDecisions: JSON\.stringify\(lineDecisions\)/);
+
+  assert.match(dataSource, /销售回复默认可借鉴；不妥的句子改为“不建议借鉴”/);
+  assert.match(dataSource, /逐句确认这段销售聊天/);
 });

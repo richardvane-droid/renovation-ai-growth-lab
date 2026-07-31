@@ -16,6 +16,8 @@ export type PrototypeDetailContext = {
   parsedValues?: string;
   spokespersonName?: string;
   materialType?: string;
+  conversationId?: string;
+  lineDecisions?: string;
   sampleName?: string;
   outcome?: string;
   customerName?: string;
@@ -265,19 +267,12 @@ function DetailShell({
 }) {
   return (
     <div className="detail-layout">
-      <Card
-        caption={screen.summary}
-        action={<Pill tone={screen.module === "video" ? "info" : screen.module === "sales" ? "positive" : "warning"}>门店场景演示</Pill>}
-        className="detail-main"
-      >
+      <Card className="detail-main">
         {children}
         <div style={ui.actionRow}>{actions}</div>
       </Card>
-      <Card title="这页只做一个决定" caption="不懂专业词也没关系，照下面三步检查" className="detail-side">
-        <div style={ui.warning}>
-          <b style={ui.title}>{decision}</b>
-          <p style={ui.copy}>{decisionHint}</p>
-        </div>
+      <Card title={decision} caption={decisionHint} className="detail-side">
+        <b className="detail-check-label">检查这三点</b>
         <div style={ui.rows}>
           {checks.map((item, index) => (
             <div className="audit-line" key={item}>
@@ -285,11 +280,6 @@ function DetailShell({
               {item}
             </div>
           ))}
-        </div>
-        <div className="history-box">
-          <b>怎么知道操作成功？</b>
-          <p>点完左下方专属按钮后，页面会弹出“已保存”或“已安排”的提示。</p>
-          <p>拿不准时不要硬通过，选择修改、重拍或交给真人处理。</p>
         </div>
         <Button onClick={() => goTo(screen.parent ?? "")}>← 返回上一级列表</Button>
       </Card>
@@ -930,45 +920,83 @@ function SalesTrainingDetail({ screen, goTo, notify, context }: DetailPageProps)
   );
 }
 
+type ChampionLineDecision = "borrowable" | "not-borrowable";
+type ChampionRound = [speaker: "客户" | "销售顾问", copy: string, why: string];
+
+function parseChampionLineDecisions(value?: string) {
+  if (!value) return {} as Record<string, ChampionLineDecision>;
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, ChampionLineDecision] =>
+        entry[1] === "borrowable" || entry[1] === "not-borrowable"
+      ),
+    );
+  } catch {
+    return {} as Record<string, ChampionLineDecision>;
+  }
+}
+
 function SalesChampionDetail({ screen, goTo, notify, context }: DetailPageProps) {
   const name = context?.customerName ?? "林女士｜118㎡原木风";
   const sampleName = context?.sampleName ?? "示例 1";
+  const conversationId = context?.conversationId ?? sampleName;
   const outcome = context?.outcome ?? "到店";
   const resultType = outcome.includes("未成交") ? "failed"
     : outcome.includes("继续") || outcome.includes("留下") ? "continuing"
       : "successful";
-  const roundsByResult: Record<string, string[][]> = {
+  const roundsByResult: Record<string, ChampionRound[]> = {
     successful: [
       ["客户", "我家 118㎡，想做原木风，预算 15 万。", "客户给出户型、风格、预算"],
-      ["优秀销售", "您更在意环保、收纳，还是总预算不超？", "先问最在意什么，不急着报价"],
+      ["销售顾问", "您更在意环保、收纳，还是总预算不超？", "先问最在意什么，不急着报价"],
       ["客户", "家里有小孩，环保第一，预算也别超太多。", "客户明确环保优先"],
-      ["优秀销售", "我先按 ENF 板材做基础和升级两档，带样板给您对比。周六下午方便到店吗？", "给两档方案，并用实物证明"],
+      ["销售顾问", "我先按 ENF 板材做基础和升级两档，带样板给您对比。周六下午方便到店吗？", "给两档方案，并用实物证明"],
       ["客户", outcome.includes("量房") ? "我到店不方便，可以先上门量房。" : "周六下午可以过去。", `实际结果：${outcome}`],
     ],
     continuing: [
       ["客户", "新房还没交付，我只是先了解一下，现在不准备到店。", "客户明确暂时不推进"],
-      ["优秀销售", "明白，我先不催您。可以发一份交房前准备清单，等您拿房后再联系吗？", "尊重客户节奏，先提供有用资料"],
+      ["销售顾问", "明白，我先不催您。可以发一份交房前准备清单，等您拿房后再联系吗？", "尊重客户节奏，先提供有用资料"],
       ["客户", "可以，先发清单，交房后我再找你。", "客户同意继续保留联系"],
-      ["优秀销售", "好的，我只发这一份；没有新进展前不会频繁打扰。", "说清联系频率和边界"],
+      ["销售顾问", "好的，我只发这一份；没有新进展前不会频繁打扰。", "说清联系频率和边界"],
     ],
     failed: [
       ["客户", "别家还能更便宜，你们能不能保证 500 元一平方？", "客户把最低价作为唯一条件"],
-      ["优秀销售", "目前门店价格表没有 500 元这一档，我不能先答应。可以把现有套餐包含项和升级项给您列清楚。", "不为成交编造价格"],
+      ["销售顾问", "目前门店价格表没有 500 元这一档，我不能先答应。可以把现有套餐包含项和升级项给您列清楚。", "不为成交编造价格"],
       ["客户", "那不用了，我先选别家。", "客户明确没有成交"],
-      ["优秀销售", "明白，我这边停止后续自动消息。以后需要核对配置时，您再联系即可。", "尊重拒绝并停止自动联系"],
+      ["销售顾问", "明白，我这边停止后续自动消息。以后需要核对配置时，您再联系即可。", "尊重拒绝并停止自动联系"],
     ],
   };
   const rounds = roundsByResult[resultType];
-  const resultSummary = resultType === "successful"
-    ? `客户结果：${outcome}。这段值得学习“先问重点、再给依据、最后邀约”。`
-    : resultType === "continuing"
-      ? `客户结果：${outcome}。这段值得学习“尊重节奏、提供有用资料、不频繁催促”。`
-      : "客户结果：未成交。它仍值得作为边界示例：没有虚构低价，并在客户拒绝后停止联系。";
+  const salesLineKeys = rounds.flatMap(([speaker], index) =>
+    speaker === "销售顾问" ? [`line-${index + 1}`] : []
+  );
+  const [lineDecisions, setLineDecisions] = useState<Record<string, ChampionLineDecision>>(() => {
+    const saved = parseChampionLineDecisions(context?.lineDecisions);
+    return Object.fromEntries(
+      salesLineKeys.map((lineKey) => [lineKey, saved[lineKey] ?? "borrowable"]),
+    );
+  });
+  const borrowableCount = salesLineKeys.filter((lineKey) => lineDecisions[lineKey] !== "not-borrowable").length;
+  const notBorrowableCount = salesLineKeys.length - borrowableCount;
+
+  function changeLineDecision(lineKey: string, decision: ChampionLineDecision) {
+    setLineDecisions((current) => ({ ...current, [lineKey]: decision }));
+    emitDetailEvent("demo-champion-line-decision", {
+      conversationId,
+      decision,
+      lineKey,
+      sampleName,
+    });
+  }
 
   function recordSample(decision: "included" | "excluded") {
     emitDetailEvent("demo-champion-sample-decision", {
+      borrowableCount: String(borrowableCount),
       customerName: name,
+      conversationId,
       decision,
+      lineDecisions: JSON.stringify(lineDecisions),
+      notBorrowableCount: String(notBorrowableCount),
       outcome,
       sampleName,
     });
@@ -978,41 +1006,85 @@ function SalesChampionDetail({ screen, goTo, notify, context }: DetailPageProps)
     <DetailShell
       screen={screen}
       goTo={goTo}
-      decision={`这段“${outcome}”聊天，哪种做法值得教给机器人？`}
-      decisionHint={resultType === "failed" ? "未成交不等于坏示例。本例的价值是守住价格边界、尊重拒绝，不能把它写成成功到店。" : "确认实际结果与聊天一致，再决定是否纳入优秀示例。"}
-      checks={["确认客户情况与所选示例一致", "看回答有没有证据和承诺边界", `确认实际结果确实是“${outcome}”`]}
+      decision="哪些销售回复值得保留？"
+      decisionHint="销售回复默认可借鉴。只需把不准确、不合适或不得体的句子改为“不建议借鉴”。"
+      checks={["先确认客户情况和实际结果", "逐句检查销售有没有乱承诺", `保存前确认结果是“${outcome}”`]}
       actions={(
         <>
           <Button
+            disabled={borrowableCount === 0}
             kind="primary"
             onClick={() => {
               recordSample("included");
-              notify(resultType === "failed" ? "已作为“守住价格边界”的未成交示例保存" : `已保存为“${outcome}”优秀示例`);
+              notify(`已保存：${borrowableCount} 句可借鉴，${notBorrowableCount} 句不建议`);
             }}
           >
-            {resultType === "failed" ? "保存为未成交边界示例" : "作为优秀示例，学习这套做法"}
+            {borrowableCount === 0
+              ? "没有可借鉴的销售回复"
+              : notBorrowableCount === 0
+                ? `确认这 ${borrowableCount} 句都可借鉴`
+                : `保存：${borrowableCount} 句可借鉴，${notBorrowableCount} 句不建议`}
           </Button>
-          <Button onClick={() => { recordSample("excluded"); notify("已排除这段聊天，不会用于机器人学习"); }}>不适合学习，排除这段聊天</Button>
+          <Button onClick={() => { recordSample("excluded"); notify("整段聊天已排除，不参与学习"); }}>整段都不参与学习</Button>
         </>
       )}
     >
       <div style={ui.stack}>
         <div style={ui.explanation}>
           <b style={ui.title}>{sampleName}｜客户：{name}</b>
-          <p style={ui.copy}>实际结果：{outcome} · 已隐去手机号和详细住址。以下对话与这个结果对应。</p>
+          <p style={ui.copy}>实际结果：{outcome} · 已隐去手机号和详细住址。</p>
+        </div>
+        <div className="champion-review-summary" aria-live="polite">
+          <div>
+            <b>默认可借鉴，只改少数不妥的句子</b>
+            <span>客户原话只作背景，不会作为销售话术。</span>
+          </div>
+          <strong>{borrowableCount} 句可借鉴 · {notBorrowableCount} 句不建议</strong>
         </div>
         <div style={ui.rows}>
-          {rounds.map(([speaker, copy, why], index) => (
-            <div className={`chat ${speaker === "客户" ? "customer" : "robot"}`} key={`${speaker}-${index}`}>
-              <b>{speaker} · 第 {index + 1} 句</b>
-              <p>{copy}</p>
-              <small style={ui.muted}>这句话的作用：{why}</small>
-            </div>
-          ))}
-        </div>
-        <div className="knowledge-cite">
-          <b>店长一眼看结论</b>
-          <p>{resultSummary}</p>
+          {rounds.map(([speaker, copy, why], index) => {
+            const lineKey = `line-${index + 1}`;
+            const isSalesLine = speaker === "销售顾问";
+            const lineDecision = lineDecisions[lineKey] ?? "borrowable";
+            return (
+              <div
+                className={`chat ${isSalesLine ? "robot champion-sales-line" : "customer"} ${lineDecision === "not-borrowable" ? "not-borrowable" : ""}`}
+                key={`${speaker}-${index}`}
+              >
+                <div className="champion-chat-head">
+                  <b>{speaker} · 第 {index + 1} 句</b>
+                  {!isSalesLine && <span>只作背景</span>}
+                </div>
+                <p>{copy}</p>
+                <small style={ui.muted}>系统理解：{why}</small>
+                {isSalesLine && (
+                  <>
+                    <div className="line-review" role="group" aria-label={`第 ${index + 1} 句是否可借鉴`}>
+                      <button
+                        aria-pressed={lineDecision === "borrowable"}
+                        className={lineDecision === "borrowable" ? "active" : ""}
+                        onClick={() => changeLineDecision(lineKey, "borrowable")}
+                        type="button"
+                      >
+                        ✓ 可借鉴
+                      </button>
+                      <button
+                        aria-pressed={lineDecision === "not-borrowable"}
+                        className={lineDecision === "not-borrowable" ? "active exclude" : ""}
+                        onClick={() => changeLineDecision(lineKey, "not-borrowable")}
+                        type="button"
+                      >
+                        不建议借鉴
+                      </button>
+                    </div>
+                    <small className="line-review-status">
+                      {lineDecision === "borrowable" ? "这句话会作为学习示例" : "这句话不会教给机器人"}
+                    </small>
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </DetailShell>
