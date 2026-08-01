@@ -72,9 +72,10 @@ test("ships only page-specific operation demos", async () => {
   );
   assert.deepEqual(files.sort(), expected);
 
-  const [pageSource, generatorSource] = await Promise.all([
+  const [pageSource, generatorSource, screenSource] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../scripts/make-demo-videos.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
   ]);
   for (const file of expected) {
     assert.match(pageSource, new RegExp(`\\./demos/${file.replace(".", "\\.")}`));
@@ -94,6 +95,12 @@ test("ships only page-specific operation demos", async () => {
   assert.doesNotMatch(generatorSource, /选择合格、发现问题或转人工/);
   assert.doesNotMatch(generatorSource, /先选“建议发布”的版本/);
   assert.doesNotMatch(generatorSource, /确认文件标有“建议发布”/);
+  assert.doesNotMatch(generatorSource, /逐项完成 5 个人工确认/);
+  assert.doesNotMatch(generatorSource, /下载按钮才会解锁/);
+  assert.match(generatorSource, /点“下载第 3 版”/);
+  assert.doesNotMatch(screenSource, /const manualChecks/);
+  assert.doesNotMatch(screenSource, /先看完视频并完成 5 项人工确认/);
+  assert.match(screenSource, />下载第 3 版<\/a>/);
   assert.match(pageSource, /<PageDemoVideo key=\{pageDemo\.src\}/);
   assert.doesNotMatch(pageSource, /DemoVideo module=/);
   assert.doesNotMatch(pageSource, /Record<ModuleKey,\s*\{\s*src:/);
