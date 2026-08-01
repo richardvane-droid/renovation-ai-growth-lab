@@ -27,13 +27,14 @@ const HEIGHT = 720;
 const SOURCE_WIDTH = 742;
 const SOURCE_HEIGHT = 752;
 const CROP_HEIGHT = Math.floor((SOURCE_WIDTH * HEIGHT) / WIDTH);
-const STEP_SECONDS = 3;
+const STEP_SECONDS = 5;
 const DISCLAIMER = "当前页面演示 · 不会真实发送";
 
 const pageDemos = [
   {
     id: "video-slices",
     accent: "#1677ff",
+    posterAt: 7.5,
     title: "上传实拍并检查自动拆出的片段",
     steps: [
       {
@@ -47,8 +48,8 @@ const pageDemos = [
         focus: [0.52, 0.37],
       },
       {
-        action: ["核对片段数和建议用途", "确认系统没有漏掉关键画面"],
-        result: "数量和用途都正常，再进入逐段核对。",
+        action: ["核对片段数和画面内容", "确认系统没有漏掉关键画面"],
+        result: "数量和画面说明都正常，再进入逐段核对。",
         focus: [0.66, 0.48],
       },
       {
@@ -61,6 +62,7 @@ const pageDemos = [
   {
     id: "video-spokesperson",
     accent: "#1677ff",
+    posterAt: 10.5,
     title: "准备店长照片和 3 段出镜视频",
     steps: [
       {
@@ -80,7 +82,7 @@ const pageDemos = [
       },
       {
         action: ["上传“不同语气示范”", "上传后等待本页给出检查结果"],
-        result: "3 段视频全部完成，才算通过本页。",
+        result: "看到“已上传，等待检查”，本页上传已完成。",
         focus: [0.88, 0.66],
       },
     ],
@@ -88,11 +90,12 @@ const pageDemos = [
   {
     id: "video-result",
     accent: "#1677ff",
+    posterAt: 4.5,
     title: "看完、核对并下载今天的推荐版",
     steps: [
       {
-        action: ["先选“建议发布”的版本", "从头播放到结尾"],
-        result: "状态从“还没有播放到结尾”变为“已看完”。",
+        action: ["先播放“第 3 版（建议发布）”", "从头播放到结尾"],
+        result: "状态从“还没有播放到结尾”变为“已播放到结尾”。",
         focus: [0.27, 0.43],
       },
       {
@@ -107,8 +110,8 @@ const pageDemos = [
         source: "lower",
       },
       {
-        action: ["按钮可用后再下载", "确认文件标有“建议发布”"],
-        result: "看到下载开始，本页操作就完成了。",
+        action: ["按钮可用后下载第 3 版", "确认当前页签标有“建议发布”"],
+        result: "看到“今日成片-第3版.mp4”开始下载，本页完成。",
         focus: [0.7, 0.52],
         source: "lower",
       },
@@ -117,6 +120,7 @@ const pageDemos = [
   {
     id: "sales-training",
     accent: "#2563eb",
+    posterAt: 7.5,
     title: "上传并核对门店资料",
     steps: [
       {
@@ -125,17 +129,17 @@ const pageDemos = [
         focus: [0.87, 0.24],
       },
       {
-        action: ["检查四类资料是否齐全", "价格、活动、区域、售后都要有"],
+        action: ["检查 5 类资料是否齐全", "价格、活动、材料、区域、售后都要有"],
         result: "缺少的资料会在卡片中直接提示。",
         focus: [0.54, 0.39],
       },
       {
-        action: ["先处理黄色“待核对”", "不要把旧价格直接交给机器人"],
-        result: "看到有效期和来源，才算可以使用。",
+        action: ["先找黄色“需要你确认”", "不要把旧价格直接交给机器人"],
+        result: "本页会直接标出待核对或说法不一致的资料。",
         focus: [0.48, 0.52],
       },
       {
-        action: ["确认出现“检查资料”入口", "演示在进入详情前结束"],
+        action: ["确认黄色资料出现核对入口", "演示在点击入口前结束"],
         result: "本页只负责上传、读取和发现待核对项。",
         focus: [0.76, 0.56],
       },
@@ -144,6 +148,7 @@ const pageDemos = [
   {
     id: "sales-simulation",
     accent: "#2563eb",
+    posterAt: 7.5,
     title: "给回答评分并改正低分项",
     steps: [
       {
@@ -157,8 +162,8 @@ const pageDemos = [
         focus: [0.28, 0.77],
       },
       {
-        action: ["找到右侧低分原因", "按提示改成门店可以兑现的话"],
-        result: "改写必须有依据，不能增加承诺。",
+        action: ["出现 2 分后填写正确回答", "按门店资料改成可以兑现的话"],
+        result: "低分题必须写出正确说法，不能增加承诺。",
         focus: [0.55, 0.75],
         source: "lower",
       },
@@ -173,6 +178,7 @@ const pageDemos = [
   {
     id: "sales-quality",
     accent: "#2563eb",
+    posterAt: 4.5,
     title: "核对一段可能答错的聊天",
     steps: [
       {
@@ -192,8 +198,8 @@ const pageDemos = [
         source: "lower",
       },
       {
-        action: ["选择合格、发现问题或转人工", "一次只作一个结论"],
-        result: "看到聊天状态更新，本页操作完成。",
+        action: ["需要人工核价时", "点“交给真人销售”"],
+        result: "看到负责人和截止时间，本页处理完成。",
         focus: [0.65, 0.8],
         source: "lower",
       },
@@ -202,6 +208,7 @@ const pageDemos = [
   {
     id: "sales-plugins",
     accent: "#2563eb",
+    posterAt: 7.5,
     title: "配置、试运行并启用一项功能",
     steps: [
       {
@@ -231,6 +238,7 @@ const pageDemos = [
   {
     id: "recall-poster",
     accent: "#d97706",
+    posterAt: 1.5,
     title: "设置知识海报生成规则",
     steps: [
       {
@@ -258,6 +266,7 @@ const pageDemos = [
   {
     id: "recall-coupon",
     accent: "#d97706",
+    posterAt: 10.5,
     title: "设置量房券规则",
     steps: [
       {
@@ -511,6 +520,28 @@ async function renderPageDemo(demo, tempRoot) {
   return outputPath;
 }
 
+async function renderDemoPoster(demo, videoPath) {
+  const previewDir = path.join(repoRoot, "public", "video-previews");
+  const outputPath = path.join(previewDir, `demo-${demo.id}.jpg`);
+  await mkdir(previewDir, { recursive: true });
+  await runFile(ffmpegBin, [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-ss",
+    String(demo.posterAt),
+    "-i",
+    videoPath,
+    "-frames:v",
+    "1",
+    "-q:v",
+    "2",
+    outputPath,
+  ], { maxBuffer: 10 * 1024 * 1024 });
+  return outputPath;
+}
+
 async function main() {
   await assertFfmpeg();
   await mkdir(outputDir, { recursive: true });
@@ -524,7 +555,10 @@ async function main() {
 
     for (const demo of pageDemos) {
       const outputPath = await renderPageDemo(demo, tempRoot);
-      console.log(`已生成 ${path.relative(repoRoot, outputPath)}（仅演示 ${demo.title}）`);
+      const posterPath = await renderDemoPoster(demo, outputPath);
+      console.log(
+        `已生成 ${path.relative(repoRoot, outputPath)} 和 ${path.relative(repoRoot, posterPath)}（仅演示 ${demo.title}）`,
+      );
     }
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

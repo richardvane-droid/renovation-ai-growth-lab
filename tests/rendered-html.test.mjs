@@ -72,13 +72,28 @@ test("ships only page-specific operation demos", async () => {
   );
   assert.deepEqual(files.sort(), expected);
 
-  const pageSource = await readFile(
-    new URL("../app/page.tsx", import.meta.url),
-    "utf8",
-  );
+  const [pageSource, generatorSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/make-demo-videos.mjs", import.meta.url), "utf8"),
+  ]);
   for (const file of expected) {
     assert.match(pageSource, new RegExp(`\\./demos/${file.replace(".", "\\.")}`));
+    const id = file.replace(/\.mp4$/, "");
+    assert.match(generatorSource, new RegExp(`id: "${id}"`));
   }
+  assert.equal([...pageSource.matchAll(/src: "\.\/demos\/[^\"]+\.mp4"/g)].length, expected.length);
+  assert.equal([...pageSource.matchAll(/duration: "20 秒"/g)].length, expected.length);
+  assert.equal([...generatorSource.matchAll(/posterAt: /g)].length, expected.length);
+  assert.match(generatorSource, /const STEP_SECONDS = 5/);
+  assert.match(generatorSource, /当前页面演示 · 不会真实发送/);
+  assert.match(generatorSource, /renderDemoPoster\(demo, outputPath\)/);
+  assert.match(generatorSource, /demo-\$\{demo\.id\}\.jpg/);
+  assert.doesNotMatch(generatorSource, /建议用途/);
+  assert.doesNotMatch(generatorSource, /3 段视频全部完成/);
+  assert.doesNotMatch(generatorSource, /找到右侧低分原因/);
+  assert.doesNotMatch(generatorSource, /选择合格、发现问题或转人工/);
+  assert.doesNotMatch(generatorSource, /先选“建议发布”的版本/);
+  assert.doesNotMatch(generatorSource, /确认文件标有“建议发布”/);
   assert.match(pageSource, /<PageDemoVideo key=\{pageDemo\.src\}/);
   assert.doesNotMatch(pageSource, /DemoVideo module=/);
   assert.doesNotMatch(pageSource, /Record<ModuleKey,\s*\{\s*src:/);
