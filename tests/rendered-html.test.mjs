@@ -351,11 +351,12 @@ test("puts daily work first and folds low-frequency setup out of the way", async
   assert.match(css, /\.setup-nav \.screen-nav button\s*\{[\s\S]*?color: var\(--muted\)/);
 });
 
-test("builds the enterprise brain from uploaded business documents", async () => {
-  const [pageSource, dataSource, brainSource, screenSource] = await Promise.all([
+test("builds the enterprise brain from real production knowledge", async () => {
+  const [pageSource, dataSource, brainSource, brainDataSource, screenSource] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-brain.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/enterprise-brain-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
   ]);
 
@@ -367,17 +368,27 @@ test("builds the enterprise brain from uploaded business documents", async () =>
   assert.doesNotMatch(dataSource, /module: "brain"[\s\S]{0,120}detail: true/);
   assert.match(screenSource, /<BrainScreenContent id=\{screen\.id\} goTo=\{goTo\} notify=\{notify\} \/>/);
 
-  assert.match(brainSource, /上传企业资料，AI 自动建设企业大脑/);
-  assert.match(brainSource, /67 份生产资料自动拆成 37 个模块/);
-  assert.match(brainSource, /A｜企业核心/);
-  assert.match(brainSource, /B｜行业通用/);
-  assert.match(brainSource, /C｜企业独有/);
-  assert.match(brainSource, /D｜AI 动态扩展/);
-  assert.match(brainSource, /568 元\/投影㎡套餐/);
-  assert.match(brainSource, /有大有小｜量房到安装 SOP/);
-  assert.match(brainSource, /AI 推荐｜按有效期融合两个价格版本/);
-  assert.match(brainSource, /设计师渠道合作/);
-  assert.match(brainSource, /企业大脑 v13/);
+  assert.match(brainSource, /资料收集箱｜已接入 AKKE 生产库/);
+  assert.match(brainSource, /67 份企业文档/);
+  assert.match(brainDataSource, /A｜企业核心/);
+  assert.match(brainDataSource, /B｜行业通用/);
+  assert.match(brainDataSource, /C｜企业独有/);
+  assert.match(brainSource, /D｜知识来源与隔离规则/);
+  assert.match(brainDataSource, /价格体系与预算预估/);
+  assert.match(brainDataSource, /订单服务全流程（10步）/);
+  assert.match(brainSource, /AI 推荐｜自动回复不承诺，转人工按合同核对/);
+  assert.match(brainSource, /样板房运营规则/);
+  assert.match(brainSource, /生产快照发布检查/);
+  assert.match(brainDataSource, /knowledgeDocuments: 67/);
+  assert.match(brainDataSource, /knowledgeEntries: 362/);
+  assert.match(brainDataSource, /knowledgeChunks: 2987/);
+  assert.match(brainDataSource, /conversationExamples: 206/);
+  assert.match(brainDataSource, /退定条件/);
+  assert.match(brainDataSource, /加急生产周期与费率/);
+  assert.match(brainDataSource, /售后响应时限/);
+  assert.match(brainDataSource, /fetchPublicKnowledgeEntries/);
+  assert.doesNotMatch(brainSource, /498 元\/投影㎡/);
+  assert.doesNotMatch(brainSource, /企业大脑 v13/);
   assert.match(pageSource, /screen\.module !== "brain"/);
   assert.match(screenSource, /from "\.\/prototype-brain"/);
 
