@@ -23,7 +23,7 @@ async function render() {
   );
 }
 
-test("server-renders the paid account entrance", async () => {
+test("server-renders the product prototype without login", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -40,10 +40,14 @@ test("server-renders the paid account entrance", async () => {
   );
 
   assert.match(html, /门店营销助手/);
-  assert.match(html, />登录<\/h1>/);
-  assert.match(html, />注册新门店<\/button>/);
-  assert.match(html, /paid@demo\.cn \/ 123456/);
-  assert.match(html, /new@demo\.cn \/ 123456/);
+  assert.match(html, /product-app module-video/);
+  assert.match(html, /短视频获客/);
+  assert.match(html, /今天要做/);
+  assert.match(html, /测试期无需登录/);
+  assert.match(html, /查看账号页面/);
+  assert.doesNotMatch(html, /paid@demo\.cn/);
+  assert.doesNotMatch(html, /new@demo\.cn/);
+  assert.doesNotMatch(html, />登录<\/h1>/);
 
   assert.doesNotMatch(html, /看一遍再操作/);
   assert.doesNotMatch(html, /本页操作演示/);
@@ -370,36 +374,40 @@ test("keeps enterprise brain plain, compact, and actionable for a store manager"
   }
 });
 
-test("gates the product behind registration, login, and a clear demo payment", async () => {
+test("keeps account and payment pages presentational only", async () => {
   const [accountSource, pageSource, css] = await Promise.all([
     readFile(new URL("../app/account-access.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(accountSource, /type AccessView = "login" \| "register" \| "payment" \| "success"/);
-  assert.match(accountSource, /paid@demo\.cn/);
-  assert.match(accountSource, /new@demo\.cn/);
-  assert.match(accountSource, /注册并前往开通/);
-  assert.match(accountSource, /一次性开通费/);
+  assert.match(accountSource, /type AccessView = "login" \| "register" \| "payment"/);
+  assert.match(accountSource, /测试期仅展示页面样式/);
+  assert.match(accountSource, /不会校验密码、创建账号、保存填写内容或发起支付/);
+  assert.match(accountSource, /测试期不提交/);
+  assert.match(accountSource, /测试期不创建账号/);
+  assert.match(accountSource, /测试期不发起支付/);
+  assert.match(accountSource, /返回原型/);
+  assert.match(accountSource, /开通费用/);
   assert.match(accountSource, /¥1,000/);
   assert.match(accountSource, /微信支付/);
   assert.match(accountSource, /支付宝/);
-  assert.match(accountSource, /演示支付，不会真实扣款/);
-  assert.match(accountSource, /disabled=\{!paymentAgreed\}/);
-  assert.match(accountSource, /onAccessGranted\(pendingAccount\)/);
-  assert.match(accountSource, /window\.sessionStorage/);
-  assert.match(accountSource, /route === "payment" && paymentReady/);
-  assert.match(accountSource, /storedRegistration\.paid/);
-  assert.match(accountSource, /paid: true/);
-  assert.match(pageSource, /if \(!account\)/);
-  assert.match(pageSource, /<AccountAccess/);
-  assert.match(pageSource, /onSignOut/);
-  assert.match(pageSource, /resetWorkflowDemo\(\)/);
-  assert.match(
-    await readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
-    /export function resetWorkflowDemo\(\)/,
-  );
+  assert.match(accountSource, /disabled type="submit"/);
+  assert.doesNotMatch(accountSource, /sessionStorage/);
+  assert.doesNotMatch(accountSource, /StoredDemoRegistration/);
+  assert.doesNotMatch(accountSource, /onAccessGranted/);
+  assert.doesNotMatch(accountSource, /submitLogin/);
+  assert.doesNotMatch(accountSource, /submitRegister/);
+  assert.doesNotMatch(accountSource, /finishDemoPayment/);
+  assert.doesNotMatch(accountSource, /paid: true/);
+  assert.match(pageSource, /showAccountPreview/);
+  assert.match(pageSource, /<AccountAccess onBack=/);
+  assert.match(pageSource, /<PrototypeHub onOpenAccountPreview=/);
+  assert.match(pageSource, /测试期无需登录/);
+  assert.doesNotMatch(pageSource, /ACCESS_SESSION_KEY/);
+  assert.doesNotMatch(pageSource, /if \(!account\)/);
+  assert.doesNotMatch(pageSource, /onSignOut/);
+  assert.doesNotMatch(pageSource, /sessionStorage/);
   assert.match(css, /\.account-access\s*\{/);
   assert.match(css, /\.account-access-payment,/);
 });

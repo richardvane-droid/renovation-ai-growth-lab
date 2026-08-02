@@ -8,8 +8,8 @@ import {
   ModuleKey,
   Screen,
 } from "./prototype-data";
-import { resetWorkflowDemo, ScreenContent, WorkflowEventBridge } from "./prototype-screens";
-import AccountAccess, { type AccessAccount } from "./account-access";
+import { ScreenContent, WorkflowEventBridge } from "./prototype-screens";
+import AccountAccess from "./account-access";
 
 const moduleOrder: ModuleKey[] = ["video", "sales", "recall", "brain"];
 const phaseLabels: Record<string, string> = {
@@ -22,20 +22,6 @@ const phaseLabels: Record<string, string> = {
 };
 
 type DetailContext = Record<string, string>;
-
-const ACCESS_SESSION_KEY = "akke-demo-access-account";
-
-function readAccessSession(): AccessAccount | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const saved = window.sessionStorage.getItem(ACCESS_SESSION_KEY);
-    if (!saved) return null;
-    const account = JSON.parse(saved) as AccessAccount;
-    return account.storeName && account.contact && account.account ? account : null;
-  } catch {
-    return null;
-  }
-}
 
 type PageDemo = {
   src: string;
@@ -120,46 +106,21 @@ const pageDemos: Partial<Record<string, PageDemo>> = {
 };
 
 export default function StoreMarketingApp() {
-  const [account, setAccount] = useState<AccessAccount | null>(null);
+  const [showAccountPreview, setShowAccountPreview] = useState(false);
 
-  useEffect(() => {
-    const savedAccount = readAccessSession();
-    if (!savedAccount) return;
-    const restoreTimer = window.setTimeout(() => setAccount(savedAccount), 0);
-    return () => window.clearTimeout(restoreTimer);
-  }, []);
-
-  if (!account) {
-    return (
-      <AccountAccess
-        onAccessGranted={(nextAccount) => {
-          window.sessionStorage.setItem(ACCESS_SESSION_KEY, JSON.stringify(nextAccount));
-          setAccount(nextAccount);
-          window.history.replaceState(null, "", "#video-top");
-        }}
-      />
-    );
+  if (showAccountPreview) {
+    return <AccountAccess onBack={() => setShowAccountPreview(false)} />;
   }
 
   return (
-    <PrototypeHub
-      account={account}
-      onSignOut={() => {
-        resetWorkflowDemo();
-        window.sessionStorage.removeItem(ACCESS_SESSION_KEY);
-        setAccount(null);
-        window.history.replaceState(null, "", "#login");
-      }}
-    />
+    <PrototypeHub onOpenAccountPreview={() => setShowAccountPreview(true)} />
   );
 }
 
 function PrototypeHub({
-  account,
-  onSignOut,
+  onOpenAccountPreview,
 }: {
-  account: AccessAccount;
-  onSignOut: () => void;
+  onOpenAccountPreview: () => void;
 }) {
   const [activeId, setActiveId] = useState("video-top");
   const [screenContexts, setScreenContexts] = useState<Record<string, DetailContext>>({});
@@ -328,10 +289,10 @@ function PrototypeHub({
 
         <div className="account-summary">
           <div>
-            <b>{account.storeName}</b>
-            <span>{account.contact} · 已开通</span>
+            <b>原型演示</b>
+            <span>测试期无需登录</span>
           </div>
-          <button onClick={onSignOut} type="button">退出</button>
+          <button onClick={onOpenAccountPreview} type="button">查看账号页面</button>
         </div>
       </aside>
 
