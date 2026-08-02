@@ -42,9 +42,9 @@ export const coreModules: readonly BrainModule[] = [
   {
     code: "C01",
     title: "品牌定位与价值主张",
-    meta: "生产档案",
-    state: "positive",
-    intro: "来自 brand_profile 与企业文化资料的当前品牌定义。",
+    meta: "原始出处待补录",
+    state: "warning",
+    intro: "当前依据已抽取的《企业文化与三大承诺》内容；原始文件名、文件链接和段落定位尚未保存。",
     facts: [
       ["品牌", "有大有小"],
       ["定位", "大牌产品，低位价格；装修全品类一站式供应链"],
@@ -309,6 +309,7 @@ export type PublicKnowledgeEntry = {
   type: string | null;
   priority: number | null;
   updated_at: string | null;
+  file_url: string | null;
 };
 
 // Supabase publishable keys are intentionally safe for browser use when RLS is enabled.
@@ -318,7 +319,7 @@ const PUBLIC_KB_KEY = "sb_publishable_v_Lrirj9X3Hbts8f0xqNrQ_poAqphZs";
 
 export async function fetchPublicKnowledgeEntries(signal?: AbortSignal): Promise<PublicKnowledgeEntry[]> {
   const query = new URLSearchParams({
-    select: "id,title,summary,category,source,type,priority,updated_at",
+    select: "id,title,summary,category,source,type,priority,updated_at,file_url",
     is_active: "eq.true",
     order: "priority.desc,updated_at.desc",
     limit: "500",

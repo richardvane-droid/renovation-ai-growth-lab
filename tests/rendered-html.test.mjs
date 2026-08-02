@@ -352,11 +352,13 @@ test("puts daily work first and folds low-frequency setup out of the way", async
 });
 
 test("builds the enterprise brain from real production knowledge", async () => {
-  const [pageSource, dataSource, brainSource, brainDataSource, screenSource] = await Promise.all([
+  const [pageSource, dataSource, brainSource, brainDataSource, provenanceSource, provenanceSpec, screenSource] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-brain.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/enterprise-brain-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/enterprise-provenance.ts", import.meta.url), "utf8"),
+    readFile(new URL("../product-specs/data-provenance-spec.md", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
   ]);
 
@@ -387,6 +389,21 @@ test("builds the enterprise brain from real production knowledge", async () => {
   assert.match(brainDataSource, /加急生产周期与费率/);
   assert.match(brainDataSource, /售后响应时限/);
   assert.match(brainDataSource, /fetchPublicKnowledgeEntries/);
+  assert.match(brainDataSource, /file_url/);
+  assert.match(brainSource, /原始资料依据/);
+  assert.match(brainSource, /数据库位置不再展示给业务用户/);
+  assert.match(brainSource, /原始文件名待补录/);
+  assert.match(brainSource, /待补段落定位/);
+  assert.match(brainSource, /原始出处也是发布门禁/);
+  assert.match(provenanceSource, /EvidenceStatus = "complete" \| "missing_locator" \| "missing_document"/);
+  assert.match(provenanceSource, /企业文化与三大承诺/);
+  assert.match(provenanceSource, /原始文件链接为空/);
+  assert.match(provenanceSpec, /source_documents/);
+  assert.match(provenanceSpec, /source_blocks/);
+  assert.match(provenanceSpec, /knowledge_facts/);
+  assert.match(provenanceSpec, /fact_evidence_links/);
+  assert.doesNotMatch(brainSource, /<b>\{source\}<\/b>/);
+  assert.doesNotMatch(brainSource, /企业事实均标注真实表和文档标题/);
   assert.doesNotMatch(brainSource, /498 元\/投影㎡/);
   assert.doesNotMatch(brainSource, /企业大脑 v13/);
   assert.match(pageSource, /screen\.module !== "brain"/);
