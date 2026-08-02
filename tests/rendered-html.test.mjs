@@ -473,6 +473,15 @@ test("builds an isolated provenance test database from real originals", async ()
   assert.ok(fixture.documents.every((item) => item.sha256.length === 64));
 });
 
+test("keeps enterprise module facts readable in a narrow workspace", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.brain-module-page\s*\{[\s\S]*?container-name:\s*brain-module-page;[\s\S]*?container-type:\s*inline-size;/);
+  assert.match(css, /@container brain-module-page \(max-width:\s*900px\)\s*\{[\s\S]*?\.brain-module-browser\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
+  assert.match(css, /@container brain-module-page \(max-width:\s*900px\)\s*\{[\s\S]*?\.brain-module-nav-card > div\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(css, /@container brain-module-page \(max-width:\s*900px\)\s*\{[\s\S]*?\.brain-structured-facts > div\s*\{[\s\S]*?grid-template-columns:\s*clamp\(132px, 24%, 180px\) minmax\(0, 1fr\);/);
+});
+
 test("keeps account and payment pages presentational only", async () => {
   const [accountSource, pageSource, css] = await Promise.all([
     readFile(new URL("../app/account-access.tsx", import.meta.url), "utf8"),
