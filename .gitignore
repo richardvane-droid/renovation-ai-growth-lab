@@ -40,3 +40,6 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# 构建产物：GitHub Pages 由 .github/workflows/pages.yml 构建发布，不提交进 git
+/docs/

@@ -1,0 +1,63 @@
+# GitHub Pages —— 由 CI 构建并发布，不再把构建产物提交进 git
+#
+# 改这件事的原因：`docs/` 是 `npm run build:static` 的产物（vite.static.config.ts 里
+# outDir: "../docs"、publicDir: "../public"），却被提交进仓库。后果有三：
+#   1. 每次改原型都要记得重跑构建并把 docs/ 一起提交，忘了 → 线上页面和 main 不一致，
+#      而且没有任何东西会提醒你（评审时看到的可能是上一版）
+#   2. public/ 里那 13 个 demo mp4 在 docs/ 里存了第二份，仓库体积直接翻倍（9.2M + 8.7M）
+#   3. review 时 diff 里混着几十万行编译产物，真正改了什么看不见
+#
+# 2026-08-02 验证过构建可复现：clone 干净仓 → npm ci → npm run build:static，
+# `git status docs/` 为空，产物与提交的一模一样。所以停止提交它是安全的。
+#
+# ⚠️ 合并本 PR 前必须先改仓库设置：Settings → Pages → Source 从「Deploy from a branch
+#   (main /docs)」改成「GitHub Actions」。**顺序反了会让线上原型 404**
+#   （https://akke-ai.github.io/akke-ai-growth-workbench-prototype/ 正在给评审用）。
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 只允许一个发布在跑，且不打断进行中的那个（半路取消会留下发布到一半的站点）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Build static site
+        run: npm run build:static
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
