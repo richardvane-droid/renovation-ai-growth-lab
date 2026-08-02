@@ -32,14 +32,14 @@ test("server-renders the product prototype without login", async () => {
 
   assert.match(
     html,
-    /<title>AKKE｜门店营销助手｜V4\.1 交互原型<\/title>/,
+    /<title>AKKE｜营销增长工作台｜V5 交互原型<\/title>/,
   );
   assert.match(
     html,
-    /<meta name="description" content="AKKE 全屋定制门店营销助手的操作演示，包含短视频获客、企微自动接待、沉默客户跟进和企业大脑。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
+    /<meta name="description" content="AKKE 全屋定制营销增长工作台操作演示，包含短视频获客、企微自动接待、沉默客户跟进和文档驱动的企业大脑。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
   );
 
-  assert.match(html, /门店营销助手/);
+  assert.match(html, /AI 营销增长工作台/);
   assert.match(html, /product-app module-video/);
   assert.match(html, /短视频获客/);
   assert.match(html, /今天要做/);
@@ -351,7 +351,7 @@ test("puts daily work first and folds low-frequency setup out of the way", async
   assert.match(css, /\.setup-nav \.screen-nav button\s*\{[\s\S]*?color: var\(--muted\)/);
 });
 
-test("keeps enterprise brain plain, compact, and actionable for a store manager", async () => {
+test("builds the enterprise brain from uploaded business documents", async () => {
   const [pageSource, dataSource, brainSource, screenSource] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
@@ -360,38 +360,28 @@ test("keeps enterprise brain plain, compact, and actionable for a store manager"
   ]);
 
   assert.match(pageSource, /\["video", "sales", "recall", "brain"\]/);
-  assert.match(dataSource, /brain: \{ index: "04", label: "企业大脑", caption: "让机器人说得准" \}/);
-  assert.equal([...dataSource.matchAll(/module: "brain"/g)].length, 7);
-  assert.equal([...dataSource.matchAll(/id: "brain-(?:today|gaps|trace)"[\s\S]*?cadence: "daily"/g)].length, 3);
-  assert.equal([...dataSource.matchAll(/id: "brain-(?:import|facts|guidance|assets)"[\s\S]*?cadence: "setup"/g)].length, 4);
+  assert.match(dataSource, /brain: \{ index: "04", label: "企业大脑", caption: "维护企业知识" \}/);
+  assert.equal([...dataSource.matchAll(/module: "brain"/g)].length, 10);
+  assert.equal([...dataSource.matchAll(/id: "brain-(?:overview|decisions|conflict|release)"[\s\S]*?cadence: "daily"/g)].length, 4);
+  assert.equal([...dataSource.matchAll(/id: "brain-(?:inbox|processing|core|industry|unique|expansion)"[\s\S]*?cadence: "setup"/g)].length, 6);
   assert.doesNotMatch(dataSource, /module: "brain"[\s\S]{0,120}detail: true/);
   assert.match(screenSource, /<BrainScreenContent id=\{screen\.id\} goTo=\{goTo\} notify=\{notify\} \/>/);
 
-  assert.match(brainSource, /以前三个功能上传过的资料会自动到这里/);
-  assert.match(brainSource, /确认这 36 条内容并使用/);
-  assert.match(brainSource, /没有文字版时，请向资料负责人索取可复制版本/);
-  assert.match(brainSource, /在 02-02 标为“可借鉴”的销售回复会自动到这里/);
-  assert.match(brainSource, /销售回复（已在 02-02 标为可借鉴）<\/b><p>\{sourceAnswer\}<\/p>/);
-  assert.match(brainSource, /enabledIds\.includes\(asset\.id\)/);
-  assert.match(brainSource, /const remainingCount = customerAssets\.filter/);
-  assert.match(brainSource, /按本店当前产品说明和安装要求/);
-  assert.match(brainSource, /const factsReady =/);
-  assert.match(brainSource, /const \[answerReviewed, setAnswerReviewed\]/);
-  assert.match(brainSource, /const \[uploadedStatus, setUploadedStatus\]/);
-  assert.match(brainSource, /const \[riskEdits, setRiskEdits\]/);
-  assert.match(brainSource, /title=\{remaining \? "从第一条开始处理" : "今天的检查已完成"\}/);
-  assert.match(brainSource, /const reader = new FileReader\(\)/);
-  assert.match(brainSource, /停止使用/);
-  assert.match(brainSource, /回答可以使用/);
-  assert.match(brainSource, /记录这个问题/);
-  assert.match(brainSource, /function reopenBrainTask\(id: BrainDailyTaskId\)/);
-  assert.match(brainSource, /reopenBrainTask\("brain-gaps"\)/);
-  assert.match(brainSource, /reopenBrainTask\("brain-trace"\)/);
-  assert.doesNotMatch(brainSource, /加入今天待办/);
-  assert.doesNotMatch(brainSource, /按本店的\$\{source\}/);
-  assert.doesNotMatch(brainSource, /查看内部记录编号/);
+  assert.match(brainSource, /上传企业资料，AI 自动建设企业大脑/);
+  assert.match(brainSource, /67 份生产资料自动拆成 37 个模块/);
+  assert.match(brainSource, /A｜企业核心/);
+  assert.match(brainSource, /B｜行业通用/);
+  assert.match(brainSource, /C｜企业独有/);
+  assert.match(brainSource, /D｜AI 动态扩展/);
+  assert.match(brainSource, /568 元\/投影㎡套餐/);
+  assert.match(brainSource, /有大有小｜量房到安装 SOP/);
+  assert.match(brainSource, /AI 推荐｜按有效期融合两个价格版本/);
+  assert.match(brainSource, /设计师渠道合作/);
+  assert.match(brainSource, /企业大脑 v13/);
+  assert.match(pageSource, /screen\.module !== "brain"/);
+  assert.match(screenSource, /from "\.\/prototype-brain"/);
 
-  for (const jargon of ["向量化", "语义切片", "固定注入", "调用点", "Top3", "置信度", "阈值", "资料架", "DO/DON’T"]) {
+  for (const jargon of ["向量化", "固定注入", "调用点", "Top3", "置信度", "阈值", "DO/DON’T"]) {
     assert.doesNotMatch(brainSource, new RegExp(jargon));
   }
 });

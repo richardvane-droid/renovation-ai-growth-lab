@@ -216,8 +216,8 @@ function PrototypeHub({
         <div className="brand">
           <i>AKKE</i>
           <div>
-            <b>门店营销助手</b>
-            <span>给全屋定制店长的操作演示</span>
+            <b>AI 营销增长工作台</b>
+            <span>视频、企微、召回与企业大脑</span>
           </div>
         </div>
 
@@ -304,11 +304,11 @@ function PrototypeHub({
             </span>
             <h1>{screen.title}</h1>
             <p>{screen.summary}</p>
-            <small>约 {screen.duration} · 完成后得到：{screen.output}</small>
+            <small>预计用时：{screen.duration} · 本页记录：{screen.output}</small>
           </div>
         </header>
 
-        <div className={`content-layout ${screen.detail ? "detail-mode" : ""}`}>
+        <div className={`content-layout ${screen.detail ? "detail-mode" : ""} ${screen.module === "brain" ? "brain-mode" : ""}`}>
           <section className="workspace">
             <div className="demo-notice" role="note">
               <b>演示模式</b>
@@ -335,7 +335,7 @@ function PrototypeHub({
             </div>
           </section>
 
-          {!screen.detail && <aside className="help-column">
+          {!screen.detail && screen.module !== "brain" && <aside className="help-column">
             <section className="help-card guide-card">
               <h3>操作要点</h3>
               <ol>
