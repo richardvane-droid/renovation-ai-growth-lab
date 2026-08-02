@@ -1,6 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  PRODUCTION_SNAPSHOT_AT,
+  brainGroups,
+  conversationStageCounts,
+  fetchPublicKnowledgeEntries,
+  knowledgeDocumentCounts,
+  productionStats,
+  realConflicts,
+  type BrainGroupKey,
+  type PublicKnowledgeEntry,
+} from "./enterprise-brain-data";
 
 type BrainScreenProps = {
   goTo: (id: string, context?: Record<string, string>) => void;
@@ -13,12 +24,7 @@ function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: Tone
   return <span className={`pill pill-${tone}`}>{children}</span>;
 }
 
-function Button({
-  children,
-  disabled,
-  kind = "default",
-  onClick,
-}: {
+function Button({ children, disabled, kind = "default", onClick }: {
   children: ReactNode;
   disabled?: boolean;
   kind?: "default" | "primary" | "danger" | "ghost";
@@ -27,13 +33,7 @@ function Button({
   return <button className={`ui-button ui-button-${kind}`} disabled={disabled} onClick={onClick} type="button">{children}</button>;
 }
 
-function Card({
-  action,
-  caption,
-  children,
-  className = "",
-  title,
-}: {
+function Card({ action, caption, children, className = "", title }: {
   action?: ReactNode;
   caption?: string;
   children: ReactNode;
@@ -47,194 +47,129 @@ function Progress({ value }: { value: number }) {
   return <div className="progress-track" aria-label={`进度 ${value}%`}><i style={{ width: `${value}%` }} /></div>;
 }
 
-export function resetBrainWorkflowDemo() {
-  // V5 uses local component state; refreshing the prototype restores the demo.
-}
-
-type BrainModule = {
-  code: string;
-  title: string;
-  meta: string;
-  state?: string;
-};
-
-type BrainGroupKey = "core" | "industry" | "unique";
-
-const brainGroups: Record<BrainGroupKey, {
-  title: string;
-  caption: string;
-  count: number;
-  destination: string;
-  modules: BrainModule[];
-}> = {
-  core: {
-    title: "A｜企业核心",
-    caption: "企业是谁、卖什么、服务谁、哪些内容可以承诺",
-    count: 9,
-    destination: "brain-core",
-    modules: [
-      { code: "C01", title: "品牌定位与价值主张", meta: "12 条" },
-      { code: "C02", title: "目标客户与业务场景", meta: "18 条" },
-      { code: "C03", title: "产品与服务矩阵", meta: "23 条" },
-      { code: "C04", title: "套餐与计价规则", meta: "20 条" },
-      { code: "C05", title: "板材 / 五金 / 门板配置", meta: "31 条" },
-      { code: "C06", title: "服务区域与门店网络", meta: "59 城" },
-      { code: "C07", title: "活动政策 / 名额 / 周期", meta: "9 条" },
-      { code: "C08", title: "承诺边界与风险红线", meta: "14 条" },
-      { code: "C09", title: "官方内容与资质资产", meta: "15 图" },
-    ],
-  },
-  industry: {
-    title: "B｜行业通用",
-    caption: "全屋定制行业通用工序、术语、方法和验收经验",
-    count: 10,
-    destination: "brain-industry",
-    modules: [
-      { code: "I01", title: "装修业态与品类词典", meta: "16 条" },
-      { code: "I02", title: "需求采集与房屋信息", meta: "11 条" },
-      { code: "I03", title: "初尺 / 上门量房标准", meta: "14 条" },
-      { code: "I04", title: "空间规划与方案设计", meta: "18 条" },
-      { code: "I05", title: "投影面积与报价方法", meta: "13 条" },
-      { code: "I06", title: "合同 / 付款 / 变更原则", meta: "12 条" },
-      { code: "I07", title: "复尺 / 拆单 / 下单", meta: "10 条" },
-      { code: "I08", title: "生产 / 质检 / 排产", meta: "15 条" },
-      { code: "I09", title: "配送 / 安装 / 验收", meta: "17 条" },
-      { code: "I10", title: "售后 / 环保 / 甲醛", meta: "9 条" },
-    ],
-  },
-  unique: {
-    title: "C｜企业独有",
-    caption: "有大有小实际执行的价格、流程、服务能力和例外",
-    count: 12,
-    destination: "brain-unique",
-    modules: [
-      { code: "E01", title: "568 套餐口径", meta: "已发布", state: "positive" },
-      { code: "E02", title: "498 / 568 活动版本", meta: "待确认", state: "warning" },
-      { code: "E03", title: "59 城覆盖 / 远程服务", meta: "待补充" },
-      { code: "E04", title: "量房到安装 SOP", meta: "已发布", state: "positive" },
-      { code: "E05", title: "岗位角色 / 负责人 / SLA", meta: "已发布", state: "positive" },
-      { code: "E06", title: "付款节点 / 开票", meta: "待确认", state: "warning" },
-      { code: "E07", title: "合同 / 退改 / 补单", meta: "已发布", state: "positive" },
-      { code: "E08", title: "免费上门量房规则", meta: "已发布", state: "positive" },
-      { code: "E09", title: "自动报价 / 隐性费用", meta: "已发布", state: "positive" },
-      { code: "E10", title: "官方海报 / 配发规则", meta: "15 张" },
-      { code: "E11", title: "户型定制清单能力边界", meta: "人工" },
-      { code: "E12", title: "地区 / 品牌 / 数字硬校验", meta: "草稿" },
-    ],
-  },
-};
-
-const brainExpansionModules: BrainModule[] = [
-  { code: "X01", title: "设计师渠道合作", meta: "已建" },
-  { code: "X02", title: "工程项目投标", meta: "候选" },
-  { code: "X03", title: "区域临时活动", meta: "自动识别" },
-  { code: "X04", title: "新材料 / 新套餐", meta: "自动识别" },
-  { code: "X05", title: "门店差异政策", meta: "自动识别" },
-  { code: "X06", title: "客诉 / 例外处理", meta: "自动识别" },
-];
-
 function BrainMetric({ value, label, soft = false }: { value: string; label: string; soft?: boolean }) {
   return <div className={`brain-metric ${soft ? "soft" : ""}`}><b>{value}</b><span>{label}</span></div>;
 }
 
+function SourceStamp({ live, count }: { live?: boolean; count?: number }) {
+  return <div className="brain-live-stamp"><i className={live ? "online" : "snapshot"} /><span>{live ? `生产库实时连接${count ? ` · ${count} 条` : ""}` : `生产快照 · ${PRODUCTION_SNAPSHOT_AT}`}</span></div>;
+}
+
+function usePublicKnowledge() {
+  const [entries, setEntries] = useState<PublicKnowledgeEntry[]>([]);
+  const [state, setState] = useState<"loading" | "live" | "fallback">("loading");
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPublicKnowledgeEntries(controller.signal)
+      .then((rows) => { setEntries(rows); setState("live"); })
+      .catch(() => setState("fallback"));
+    return () => controller.abort();
+  }, []);
+  return { entries, state };
+}
+
+export function resetBrainWorkflowDemo() {
+  // 本原型只读展示生产数据；刷新页面会清除临时筛选和选择状态。
+}
+
 function BrainInboxScreen({ goTo, notify }: Pick<BrainScreenProps, "goTo" | "notify">) {
-  const files = [
-    ["2026 暑期焕新活动政策.pdf", "PDF · 18 页 · 4.2 MB", "已完成", "产品、政策已更新"],
-    ["568 套餐报价口径.xlsx", "Excel · 6 个工作表", "抽取中 82%", "已抽取 27 条事实"],
-    ["量房到安装 SOP.docx", "Word · 32 页", "正在匹配", "预计覆盖 6 个模块"],
-    ["有大有小品牌手册.pdf", "PDF · 24 页", "已完成", "定位、画像已更新"],
-    ["设计师渠道合作政策.docx", "Word · 11 页", "发现新模块", "建议新增渠道合作"],
+  const sources = [
+    ["品牌档案", "brand_profile", "3 条记录 · 1 条可用", "定位、品类、价格、卖点与 FAQ"],
+    ["企业知识文档", "knowledge_documents", "67 份 · 人工来源", "产品 23 · 价格 20 · 流程 14 · FAQ 5 · 脚本 5"],
+    ["行业知识条目", "kb_entries", "362 条 · 可实时读取", "装修流程、工艺、预算、验收与避坑"],
+    ["行业检索片段", "kb_chunks", "2,987 段", "用于语义检索，不在公开原型展开全文"],
+    ["历史销售对话", "conversation_examples", "206 段 · 已隔离", "只服务对话训练，不作为企业事实直接发布"],
+    ["决策规则", "decision_rules", "36 条 · 已隔离", "待后续绑定到经过确认的正式知识"],
   ];
   return <div className="brain-page brain-inbox-page">
-    <section className="brain-task-head"><div><h2>上传企业资料，AI 自动建设企业大脑</h2><p>无需分类；PDF、Word、Excel、PPT 和扫描件都可以直接上传。</p></div><Button kind="primary" onClick={() => notify("演示：已选择 3 份企业资料并加入处理队列")}>上传文件 / 文件夹</Button></section>
-    <button className="brain-dropzone" onClick={() => notify("演示：拖放区域已接收文件") } type="button"><b>↑</b><strong>拖拽企业文件到这里，或点击选择文件夹</strong><span>系统会自动识别所属模块、抽取企业事实并保留原文证据</span></button>
-    <div className="brain-metric-grid compact"><BrainMetric value="12 份" label="本次上传"/><BrainMetric value="7 个" label="更新模块"/><BrainMetric value="86 条" label="新增知识"/><BrainMetric value="4 项" label="待做选择" soft/></div>
-    <Card title="最近上传的企业资料" caption="生产资料示例；点击一项查看处理详情">
-      <div className="brain-file-list">{files.map((file, index) => <button key={file[0]} onClick={() => goTo("brain-processing", { fileName: file[0] })} type="button"><span className="brain-file-icon">{index === 1 ? "XLS" : index === 2 || index === 4 ? "DOC" : "PDF"}</span><span><b>{file[0]}</b><small>{file[1]}</small></span><Pill tone={file[2].includes("完成") ? "positive" : file[2].includes("新") ? "warning" : "neutral"}>{file[2]}</Pill><em>{file[3]}</em><i>›</i></button>)}</div>
+    <section className="brain-task-head"><div><h2>资料收集箱｜已接入 AKKE 生产库</h2><p>继续上传任意企业文档；后台自动抽取、归类、比对冲突，并保留原始证据。</p></div><div className="button-row"><SourceStamp/><Button kind="primary" onClick={() => notify("原型：上传入口已打开；正式版将文件写入私有资料区")}>上传文件 / 文件夹</Button></div></section>
+    <button className="brain-dropzone" onClick={() => notify("原型：可拖入 PDF、Word、Excel、PPT、图片或文件夹") } type="button"><b>↑</b><strong>把新的企业资料拖到这里</strong><span>原文件进入私有存储；公开页面只展示经过选择和脱敏的结构化结果</span></button>
+    <div className="brain-metric-grid compact"><BrainMetric value="67 份" label="企业文档"/><BrainMetric value="362 条" label="行业知识"/><BrainMetric value="2,987 段" label="检索切片"/><BrainMetric value="3 项" label="真实冲突" soft/></div>
+    <Card title="当前生产数据源" caption="这里展示已实际读取到的表和数据规模；点击企业知识文档查看真实处理结果">
+      <div className="brain-file-list">{sources.map((source, index) => <button key={source[1]} onClick={() => index === 1 ? goTo("brain-processing") : notify(`已选择数据源：${source[0]}`)} type="button"><span className="brain-file-icon">{index < 2 ? "DOC" : index < 4 ? "KB" : "AI"}</span><span><b>{source[0]}</b><small>{source[1]}</small></span><Pill tone={index < 4 ? "positive" : "neutral"}>{source[2]}</Pill><em>{source[3]}</em><i>›</i></button>)}</div>
     </Card>
-    <section className="brain-source-tip"><b>系统建议继续补充</b><span>合同与订单模板 · 售后质保政策 · 门店交付检查表</span><small>这些资料目前覆盖不足，会在全景页显示为“缺资料”。</small></section>
+    <section className="brain-source-tip"><b>隐私与知识边界</b><span>私人对话原文、完整门店地址、数据库密钥不会进入公开原型或 GitHub。</span><small>非行业经验的聊天节奏和销售技巧继续留在“企微自动接待”，不进入企业大脑。</small></section>
   </div>;
 }
 
 function BrainProcessingScreen({ goTo }: Pick<BrainScreenProps, "goTo">) {
-  const stages = ["解析文件", "识别表格", "抽取事实", "匹配模块", "比较旧知识", "生成选择题", "写入草稿"];
+  const stages = ["解析原文", "识别结构", "抽取事实", "匹配模块", "交叉比对", "生成冲突题", "写入快照"];
   return <div className="brain-page">
-    <section className="brain-task-head"><div><h2>568 套餐报价口径.xlsx</h2><p>上传于 14:32 · 6 个工作表 · 系统自动识别 5 个已有模块</p></div><Pill tone="warning">处理中 68%</Pill></section>
-    <Card title="文档处理进度" caption="可以离开本页，处理会在后台继续"><div className="brain-processing-progress"><Progress value={68}/><b>预计还需 1 分 40 秒</b></div><div className="brain-pipeline">{stages.map((stage, index) => <div className={index < 4 ? "done" : index === 4 ? "active" : ""} key={stage}><i>{index < 4 ? "✓" : index + 1}</i><span>{stage}</span></div>)}</div></Card>
+    <section className="brain-task-head"><div><h2>真实文档处理记录｜订单服务全流程（10步）</h2><p>来源：knowledge_documents · category=flow · 人工资料 · 已完成抽取</p></div><Pill tone="positive">生产记录 · 已完成</Pill></section>
+    <Card title="文档处理链路" caption="这不是虚构文件；下方内容来自当前生产库"><div className="brain-processing-progress"><Progress value={100}/><b>7 / 7 个阶段完成</b></div><div className="brain-pipeline">{stages.map(stage => <div className="done" key={stage}><i>✓</i><span>{stage}</span></div>)}</div></Card>
     <div className="brain-two-column">
-      <Card title="已抽取的模块覆盖" caption="原文件不会直接作为最终答案"><div className="brain-fact-list">{[["套餐与计价规则","12 条事实","C04"],["付款节点 / 开票","5 条事实","E06"],["活动政策 / 周期","4 条事实","C07"],["渠道合作","3 条事实","AI 新模块"]].map(row=><div key={row[0]}><span><b>{row[0]}</b><small>{row[1]}</small></span><Pill tone={row[2].includes("AI")?"warning":"positive"}>{row[2]}</Pill></div>)}</div></Card>
-      <Card title="原文件证据" caption="每条事实均能定位到工作表和单元格"><div className="brain-evidence-list"><div><b>当前活动价 568 元/投影㎡</b><span>工作表「套餐报价」C12</span></div><div><b>原价 868 元/投影㎡</b><span>工作表「套餐报价」C9</span></div><div><b>活动有效期至 2026-08-31</b><span>工作表「活动版本」B6</span></div><div><b>付款方式存在旧版本</b><span>工作表「付款节点」D4 · 需要确认</span></div></div></Card>
+      <Card title="抽取出的模块覆盖" caption="同一份文档可以填充多个企业模块"><div className="brain-fact-list">{[["订单服务全流程","10 个履约节点","E01"],["量尺与设计标准","5 天首版 / 2 次修改","E02"],["合同与付款节点","2000 + 80% + 20%","E03"],["生产配送安装","30 天 + 3–7 天","E04"],["验收与售后","72H 验收 / 1 年质保","E05"]].map(row=><div key={row[0]}><span><b>{row[0]}</b><small>{row[1]}</small></span><Pill tone="positive">{row[2]}</Pill></div>)}</div></Card>
+      <Card title="真实原文证据摘要" caption="公开页只放必要摘要，正式产品可回到原文位置"><div className="brain-evidence-list"><div><b>交定与建单</b><span>2000 元进入总部账户，销售在 ERP 创建订单</span></div><div><b>量尺与设计</b><span>现场条件满足后量尺；24H 约沟通，5 天内首版</span></div><div><b>签约与生产</b><span>合同款 80% 后拆单生产，预计 30 天</span></div><div><b>配送与验收</b><span>入库后支付尾款；安装、补单、验收均有节点</span></div></div></Card>
     </div>
-    <section className="brain-inline-action"><div><b>无需人工逐条录入</b><span>无冲突内容会自动写入草稿；价格、付款和活动差异会生成选择题。</span></div><Button kind="primary" onClick={() => goTo("brain-decisions")}>进入待决策中心</Button></section>
+    <section className="brain-inline-action"><div><b>交叉比对后发现 3 个承诺冲突</b><span>退定、加急周期和售后 SLA 不会自动写成对外承诺。</span></div><Button kind="primary" onClick={() => goTo("brain-decisions")}>查看真实冲突</Button></section>
   </div>;
 }
 
 function BrainOverviewScreen({ goTo }: Pick<BrainScreenProps, "goTo">) {
+  const { entries, state } = usePublicKnowledge();
+  const groupKeys = Object.keys(brainGroups) as BrainGroupKey[];
+  const moduleCount = groupKeys.reduce((sum, key) => sum + brainGroups[key].modules.length, 0);
   return <div className="brain-page brain-overview-page">
-    <section className="brain-task-head"><div><h2>AKKE 企业知识全景｜有大有小</h2><p>67 份生产资料自动拆成 37 个模块；只沉淀企业事实、行业知识和履约标准。5 份对话资料仅抽取可验证事实。</p></div><div className="button-row"><Button onClick={() => goTo("brain-inbox")}>继续上传资料</Button><Button kind="primary" onClick={() => goTo("brain-decisions")}>处理 4 项冲突</Button></div></section>
-    <div className="brain-metric-grid"><BrainMetric value="67 份" label="来源资料"/><BrainMetric value="37 个" label="知识模块"/><BrainMetric value="289 条" label="发布事实"/><BrainMetric value="4 项" label="待确认冲突" soft/><BrainMetric value="2 个" label="AI 候选模块" soft/></div>
-    <div className="brain-filter-row"><div><Pill>全部 37</Pill><Pill tone="positive">已发布 29</Pill><Pill tone="warning">待确认 4</Pill><Pill>缺资料 2</Pill><Pill tone="info">AI 扩展 2</Pill></div><span>AKKE 生产库直查｜2026-07-30</span></div>
-    <div className="brain-category-grid">{(Object.keys(brainGroups) as BrainGroupKey[]).map(key => {const group=brainGroups[key];return <section className="brain-category" key={key}><div className="brain-category-head"><h3>{group.title}</h3><Pill tone={key==="unique"?"positive":"neutral"}>{group.count} 个模块</Pill></div><p>{group.caption}</p><div className="brain-module-lines">{group.modules.map(module=><div key={module.code}><span><b>{module.code}</b>｜{module.title}</span><em>{module.meta}</em></div>)}</div><Button kind="primary" onClick={() => goTo(group.destination)}>查看{key==="core"?"企业核心":key==="industry"?"行业通用":"企业独有"}</Button></section>;})}</div>
-    <section className="brain-expansion-strip"><div><h3>D｜AI 动态扩展</h3><p>新文档出现独立业务主题时自动扩展目录；无法归类才建草稿，资料不足只保留候选。</p></div><div><b>当前动态目录｜6 个模块</b><div className="brain-expansion-lines">{brainExpansionModules.map(item=><span key={item.code}><strong>{item.code}</strong> {item.title}（{item.meta}）</span>)}</div><small>来源结构：产品 23 · 价格 20 · 流程 14 · 常见问答 5 · 对话资料 5（仅抽取事实）</small></div><div><small>本次由 3 份渠道资料触发<br/>1 个已建 · 1 个候选</small><Button kind="primary" onClick={() => goTo("brain-expansion")}>查看扩展模块</Button></div></section>
+    <section className="brain-task-head"><div><h2>AKKE 企业知识全景｜有大有小</h2><p>基于生产库真实数据构建：企业事实与行业知识分层；206 段销售对话保持隔离，不混入企业大脑。</p></div><div className="button-row"><SourceStamp live={state === "live"} count={entries.length || undefined}/><Button onClick={() => goTo("brain-inbox")}>查看数据源</Button><Button kind="primary" onClick={() => goTo("brain-decisions")}>处理 3 项冲突</Button></div></section>
+    <div className="brain-metric-grid"><BrainMetric value={`${productionStats.knowledgeDocuments} 份`} label="企业文档"/><BrainMetric value={`${productionStats.knowledgeEntries} 条`} label="行业知识"/><BrainMetric value={`${productionStats.knowledgeChunks.toLocaleString()} 段`} label="检索切片"/><BrainMetric value={`${moduleCount} 个`} label="展示模块"/><BrainMetric value="3 项" label="待确认承诺" soft/></div>
+    <div className="brain-filter-row"><div><Pill tone="positive">生产事实已填充</Pill><Pill>行业库 362 条</Pill><Pill tone="warning">冲突 3</Pill><Pill tone="info">对话资料已隔离</Pill></div><span>AKKE 生产快照｜{PRODUCTION_SNAPSHOT_AT}</span></div>
+    <div className="brain-category-grid">{groupKeys.map(key => { const group = brainGroups[key]; return <section className="brain-category" key={key}><div className="brain-category-head"><h3>{group.title}</h3><Pill tone={key === "unique" ? "positive" : "neutral"}>{group.modules.length} 个模块</Pill></div><p>{group.caption}</p><div className="brain-module-lines">{group.modules.map(module => <div key={module.code}><span><b>{module.code}</b>｜{module.title}</span><em>{module.meta}</em></div>)}</div><Button kind="primary" onClick={() => goTo(group.destination)}>查看{key === "core" ? "企业核心" : key === "industry" ? "行业通用" : "企业独有"}</Button></section>; })}</div>
+    <section className="brain-expansion-strip"><div><h3>D｜知识来源与隔离规则</h3><p>每份文档可覆盖多个模块；无法归类的主题才生成新模块候选。</p></div><div><b>67 份企业文档的真实分类</b><div className="brain-expansion-lines">{knowledgeDocumentCounts.map(([label,count])=><span key={label}><strong>{count}</strong> {label}</span>)}</div><small>销售脚本只允许抽取产品、价格、流程等可验证事实，聊天技巧留在对话模块。</small></div><div><small>206 段历史对话<br/>36 条决策规则<br/>均未在公开页展开原文</small><Button onClick={() => goTo("brain-expansion")}>查看自动扩展规则</Button></div></section>
   </div>;
 }
 
-const brainModuleDetails: Record<BrainGroupKey, {
-  heading: string;
-  intro: string;
-  facts: [string,string][];
-  sources: string[];
-}> = {
-  core: { heading: "568 元/投影㎡套餐", intro: "当前生效的产品与价格事实，适用于 2026 暑期焕新活动。", facts: [["主营品类","衣柜 / 橱柜 / 榻榻米 / 全屋柜体"],["价格口径","568 元/投影㎡；原价 868 元/投影㎡"],["板材配置","兔宝宝 / 莫干山 / 千年舟 ENF 多层板"],["五金门板","悍高五金 · 双面 PET 门板 · PUR 封边"],["服务范围","福建漳州、厦门；设计、安装、售后全包"],["明确不含","油工、乳胶漆和商铺整案"]], sources: ["《暑期焕新活动政策.pdf》P6", "《568 套餐报价口径.xlsx》C12", "《有大有小品牌手册.pdf》P14"] },
-  industry: { heading: "复尺与下单｜行业标准", intro: "初版方案确认后，以现场复尺结果作为拆单、报价和生产的唯一尺寸依据。", facts: [["前置条件","水电点位和墙地面完成；方案、颜色、五金已确认"],["必查尺寸","墙体垂直度、阴阳角、梁柱、门套、插座和设备位"],["输出物","复尺图、拆单清单、报价变更单、客户确认记录"],["行业警戒","初尺尺寸不得直接下单；隐蔽工程照片必须留档"],["企业覆盖","有大有小要求 24 小时内完成复尺记录上传"]], sources: ["《全屋定制工序标准.pdf》P22", "《复尺检查表.xlsx》Sheet1", "《门店量房到安装 SOP.docx》4.2"] },
-  unique: { heading: "有大有小｜量房到安装 SOP", intro: "企业实际执行的七阶段履约流程，包含负责人、时效、输入输出和异常处理。", facts: [["01 预约确认","销售确认地址、户型、时间和现场联系人"],["02 上门量房","量房师拍照、测量并记录设备与管线"],["03 方案报价","设计师 48 小时内提交初版方案和报价"],["04 合同付款","确认产品、交期、付款节点和变更规则"],["05 复尺下单","复尺数据经客户确认后进入拆单生产"],["06 配送安装","项目经理协调到货、安装和现场保护"],["07 验收售后","按检查表验收并建立售后档案"]], sources: ["《量房到安装 SOP.docx》v8", "《岗位责任表.xlsx》2026-07", "《安装验收检查表.pdf》v5"] },
-};
+function LiveIndustryList({ entries, selectedCategory, state }: { entries: PublicKnowledgeEntry[]; selectedCategory?: string; state: "loading" | "live" | "fallback" }) {
+  const [query, setQuery] = useState("");
+  const [selectedId, setSelectedId] = useState("");
+  const filtered = useMemo(() => entries.filter(entry => {
+    const categoryOk = !selectedCategory || entry.category === selectedCategory;
+    const haystack = `${entry.title} ${entry.summary ?? ""} ${entry.source ?? ""}`.toLowerCase();
+    return categoryOk && haystack.includes(query.trim().toLowerCase());
+  }).slice(0, 12), [entries, query, selectedCategory]);
+  const selected = filtered.find(item => item.id === selectedId) ?? filtered[0];
+  if (state === "loading") return <Card title="正在连接生产知识库"><p className="brain-card-copy">正在读取 kb_entries 的公开知识索引……</p></Card>;
+  if (state === "fallback") return <Card title="生产库暂时无法连接" action={<Pill tone="warning">使用快照</Pill>}><p className="brain-card-copy">模块结构仍来自 {PRODUCTION_SNAPSHOT_AT} 的真实快照；刷新后会重新尝试连接。</p></Card>;
+  return <Card title="真实知识条目" caption={`分类：${selectedCategory ?? "全部"} · 当前显示 ${filtered.length} 条`} action={<Pill tone="positive">实时</Pill>}>
+    <div className="brain-kb-toolbar"><input aria-label="搜索生产知识" onChange={event => setQuery(event.target.value)} placeholder="搜索标题、摘要或来源" value={query}/><span>生产库共 {entries.length} 条</span></div>
+    <div className="brain-kb-layout"><div className="brain-kb-list">{filtered.length ? filtered.map(item => <button className={selected?.id === item.id ? "active" : ""} key={item.id} onClick={() => setSelectedId(item.id)} type="button"><span><b>{item.title}</b><small>{item.source ?? "未标来源"} · {item.category ?? "未分类"}</small></span><i>›</i></button>) : <p>该筛选下暂无条目。</p>}</div><div className="brain-kb-detail">{selected ? <><Pill tone="positive">生产知识</Pill><h3>{selected.title}</h3><p>{selected.summary || "该条目暂无独立摘要，正式产品可进入原文件或检索片段核对。"}</p><dl><div><dt>分类</dt><dd>{selected.category ?? "未分类"}</dd></div><div><dt>来源</dt><dd>{selected.source ?? "未标来源"}</dd></div><div><dt>更新时间</dt><dd>{selected.updated_at ? new Date(selected.updated_at).toLocaleDateString("zh-CN") : "未记录"}</dd></div></dl></> : <p>选择左侧条目查看详情。</p>}</div></div>
+  </Card>;
+}
 
 function BrainModuleScreen({ kind, goTo }: { kind: BrainGroupKey; goTo: BrainScreenProps["goTo"] }) {
-  const group=brainGroups[kind];
-  const detail=brainModuleDetails[kind];
-  const [selected,setSelected]=useState(0);
-  const selectedModule=group.modules[selected] ?? group.modules[0];
+  const group = brainGroups[kind];
+  const [selected, setSelected] = useState(0);
+  const { entries, state } = usePublicKnowledge();
+  const activeModule = group.modules[selected] ?? group.modules[0];
   return <div className="brain-page brain-module-page">
-    <section className="brain-task-head"><div><h2>{group.title}｜{group.count} 个模块</h2><p>{group.caption}。左侧选择模块，右侧查看当前生效内容和原文件证据。</p></div><Button onClick={() => goTo("brain-overview")}>返回知识全景</Button></section>
-    <div className="brain-module-browser"><Card title="模块目录" caption={`${group.count} 个模块 · 点击切换`} className="brain-module-nav-card"><div>{group.modules.map((module,index)=><button className={selected===index?"active":""} key={module.code} onClick={()=>setSelected(index)} type="button"><span><b>{module.code}</b><em>{module.title}</em></span><Pill tone={module.state==="positive"?"positive":module.state==="warning"?"warning":"neutral"}>{module.meta}</Pill></button>)}</div></Card><div className="brain-module-detail"><section className="brain-detail-title"><div><Pill tone="positive">{selectedModule.code} · 当前生效</Pill><h2>{selected===0?detail.heading:selectedModule.title}</h2><p>{selected===0?detail.intro:"该模块已经由企业资料自动填充；下方展示当前生效结构和来源示例。"}</p></div><Button onClick={() => goTo("brain-decisions")}>查看待决策内容</Button></section><Card title="结构化内容" caption="内容可编辑；发布时保留修改人、时间和原始证据"><div className="brain-structured-facts">{detail.facts.map(row=><div key={row[0]}><b>{row[0]}</b><span>{row[1]}</span></div>)}</div></Card><Card title="来源证据与适用范围"><div className="brain-source-list">{detail.sources.map((source,index)=><div key={source}><i>{index+1}</i><span><b>{source}</b><small>{index===0?"正式制度 · 当前有效":"交叉来源 · 已核对"}</small></span><Pill tone="positive">可追溯</Pill></div>)}</div></Card></div></div>
+    <section className="brain-task-head"><div><h2>{group.title}｜{group.modules.length} 个真实模块</h2><p>{group.caption}。选择模块后查看生产内容、适用边界和证据来源。</p></div><div className="button-row">{kind === "industry" && <SourceStamp live={state === "live"} count={entries.length || undefined}/>}<Button onClick={() => goTo("brain-overview")}>返回知识全景</Button></div></section>
+    <div className="brain-module-browser"><Card title="模块目录" caption={`${group.modules.length} 个模块 · 点击切换`} className="brain-module-nav-card"><div>{group.modules.map((item,index)=><button className={selected === index ? "active" : ""} key={item.code} onClick={() => setSelected(index)} type="button"><span><b>{item.code}</b><em>{item.title}</em></span><Pill tone={item.state === "warning" ? "warning" : item.state === "info" ? "info" : "positive"}>{item.meta}</Pill></button>)}</div></Card><div className="brain-module-detail"><section className="brain-detail-title"><div><Pill tone={activeModule.state === "warning" ? "warning" : "positive"}>{activeModule.code} · {activeModule.state === "warning" ? "含待确认项" : "生产内容"}</Pill><h2>{activeModule.title}</h2><p>{activeModule.intro}</p></div>{activeModule.state === "warning" && <Button onClick={() => goTo("brain-decisions")}>处理待确认内容</Button>}</section><Card title="结构化内容" caption="由真实生产资料抽取并为公开展示做了脱敏"><div className="brain-structured-facts">{activeModule.facts.map(row=><div key={row[0]}><b>{row[0]}</b><span>{row[1]}</span></div>)}</div></Card>{kind === "industry" && <LiveIndustryList entries={entries} selectedCategory={activeModule.liveCategory} state={state}/>}<Card title="来源证据与适用范围"><div className="brain-source-list">{activeModule.sources.map((source,index)=><div key={source}><i>{index+1}</i><span><b>{source}</b><small>{index === 0 ? "生产主来源" : "交叉来源"}</small></span><Pill tone="positive">可追溯</Pill></div>)}</div></Card></div></div>
   </div>;
 }
 
 function BrainDecisionsScreen({ goTo, notify }: Pick<BrainScreenProps, "goTo" | "notify">) {
-  const decisions=[
-    ["高风险事实","产品与服务 · 568 套餐活动价","旧资料 498 元/投影㎡；新政策 568 元/投影㎡","AI 推荐：按有效期分别保留"],
-    ["高风险事实","商务政策 · 付款方式","报价表、合同模板的付款节点不一致","需要企业负责人确认"],
-    ["中风险事实","服务区域 · 吉安覆盖","知识库写全国服务；服务点清单无吉安直营店","AI 推荐：以 59 城清单为准"],
-    ["目录决策","设计师渠道合作模块归属","3 份资料形成独立业务主题","AI 推荐：创建独立模块"],
-  ];
-  return <div className="brain-page"><section className="brain-task-head"><div><h2>待决策中心｜4 项</h2><p>只有会影响价格、付款、服务范围和企业承诺的真实冲突才需要人工确认。</p></div><Button onClick={()=>notify("已接受 2 项低风险 AI 推荐；高风险事实仍需逐项确认")}>接受低风险推荐</Button></section><div className="brain-decision-summary"><BrainMetric value="2 项" label="高风险事实" soft/><BrainMetric value="1 项" label="中风险事实"/><BrainMetric value="1 项" label="目录决策"/><BrainMetric value="约 8 分钟" label="预计工作量"/></div><div className="brain-decision-list">{decisions.map((row,index)=><article key={row[1]}><span className="brain-decision-index">0{index+1}</span><div><small>{row[0]}</small><h3>{row[1]}</h3><p>{row[2]}</p><b>{row[3]}</b></div><Pill tone={index<2?"warning":index===2?"neutral":"info"}>{index<2?"必须确认":"可采用推荐"}</Pill><Button kind={index===0?"primary":"default"} onClick={()=>index===0?goTo("brain-conflict"):notify(`演示：已打开“${row[1]}”`)}>{index===0?"开始选择":"查看选项"}</Button></article>)}</div></div>;
+  return <div className="brain-page"><section className="brain-task-head"><div><h2>待决策中心｜3 个承诺冲突 + 1 个表达边界</h2><p>全部来自生产资料交叉比对；在负责人选择前，系统不会把冲突内容自动承诺给客户。</p></div><Button onClick={() => notify("服务覆盖表达边界已采用 AI 推荐；3 个承诺冲突仍需人工确认")}>接受低风险边界规则</Button></section><div className="brain-decision-summary"><BrainMetric value="2 项" label="高风险事实" soft/><BrainMetric value="1 项" label="中风险事实"/><BrainMetric value="1 项" label="表达边界"/><BrainMetric value="约 8 分钟" label="预计工作量"/></div><div className="brain-decision-list">{realConflicts.map((item,index)=><article key={item.id}><span className="brain-decision-index">0{index+1}</span><div><small>{item.level}</small><h3>{item.title}</h3><p>{item.issue}</p><b>{item.recommendation}</b></div><Pill tone={index < 2 ? "warning" : index === 2 ? "neutral" : "info"}>{index < 3 ? "必须确认" : "可采用推荐"}</Pill><Button kind={index === 0 ? "primary" : "default"} onClick={() => index === 0 ? goTo("brain-conflict") : notify(`已打开“${item.title}”的真实来源对比`)}>{index === 0 ? "开始选择" : "查看选项"}</Button></article>)}</div></div>;
 }
 
 function BrainConflictScreen({ goTo, notify }: Pick<BrainScreenProps, "goTo" | "notify">) {
-  const [choice,setChoice]=useState("fused");
-  const options=[
-    {id:"old",title:"选项 A｜498 元/投影㎡",desc:"直接采用《五一焕新活动政策》中的价格",meta:"有效期：2026-05-01 至 05-31 · 已过期"},
-    {id:"new",title:"选项 B｜568 元/投影㎡",desc:"直接采用《暑期焕新活动政策》中的价格",meta:"有效期：2026-07-01 至 08-31 · 当前有效"},
-    {id:"fused",title:"AI 推荐｜按有效期融合两个价格版本",desc:"五一期间保留 498 元；当前暑期活动使用 568 元，并保留历史版本",meta:"不删除旧政策，按生效时间自动选择"},
+  const [choice, setChoice] = useState("safe");
+  const options = [
+    { id: "profile", title: "选项 A｜采用品牌档案口径", desc: "定金 2000 元；7 天冷静期内可退款，量尺后不支持取消。", meta: "来源：brand_profile FAQ｜更新于 2026-04-22" },
+    { id: "faq", title: "选项 B｜采用高频问答口径", desc: "不承诺任何退款条件、不主动说“不退”、也不给时限型承诺。", meta: "来源：knowledge_documents｜客户高频问题（价格/退定/时间）" },
+    { id: "safe", title: "AI 推荐｜自动回复不承诺，转人工按合同核对", desc: "保留两份原始口径；机器人只说明定金计入总价，退款问题交给负责人按正式合同判断。", meta: "在正式合同与责任人确认前，风险最低" },
   ];
-  return <div className="brain-page"><section className="brain-task-head"><div><h2>选择题 1 / 4｜确定活动价格口径</h2><p>系统保留每个候选的原文件、有效时间和来源证据，并同时给出融合结果。</p></div><Pill tone="warning">高风险事实</Pill></section><section className="brain-question-banner"><div><b>568 套餐当前应该使用哪个活动价格？</b><span>影响：产品服务、商务政策、企微报价和门店报价单</span></div><Pill tone="warning">3 个候选</Pill></section><div className="brain-conflict-layout"><div className="brain-choice-list">{options.map(option=><label className={choice===option.id?"selected":""} key={option.id}><input checked={choice===option.id} name="price-choice" onChange={()=>setChoice(option.id)} type="radio"/><span><b>{option.title}</b><p>{option.desc}</p><small>{option.meta}</small></span></label>)}<section className="brain-formal-preview"><div><b>选择后的正式知识预览</b><Pill>将写入 v13</Pill></div><p>当前活动基础价为 568 元/投影㎡，原价 868 元/投影㎡；仅适用于 2026 暑期焕新活动并保留五一历史版本。</p><Button kind="primary" onClick={()=>{notify("已保存融合价格口径并更新企业大脑 v13 草稿");goTo("brain-decisions");}}>确认并返回下一题</Button></section></div><Card title="来源证据"><div className="brain-evidence-list"><div><b>《五一焕新活动政策.pdf》</b><span>P4｜498 元/投影㎡｜2026-05-31 失效</span></div><div><b>《暑期焕新活动政策.pdf》</b><span>P6｜568 元/投影㎡｜2026-08-31 失效</span></div><div><b>《套餐报价口径.xlsx》</b><span>C12｜当前报价 568 元｜持续有效</span></div></div><div className="brain-ai-reason"><b>AI 为什么推荐融合</b><p>两份文件并非同时有效，属于时间范围不同，而不是真实互相否定。按有效期分别保留最安全。</p></div></Card></div></div>;
+  return <div className="brain-page"><section className="brain-task-head"><div><h2>选择题 1 / 3｜确定定金退款口径</h2><p>两个真实生产来源发生冲突；选择一份，或采用 AI 的临时安全融合方案。</p></div><Pill tone="warning">高风险承诺</Pill></section><section className="brain-question-banner"><div><b>客户追问“交了 2000 元定金能退吗”，系统应该怎么回答？</b><span>影响：企微自动接待、报价、合同说明与沉默客户召回</span></div><Pill tone="warning">3 个候选</Pill></section><div className="brain-conflict-layout"><div className="brain-choice-list">{options.map(option=><label className={choice === option.id ? "selected" : ""} key={option.id}><input checked={choice === option.id} name="refund-choice" onChange={() => setChoice(option.id)} type="radio"/><span><b>{option.title}</b><p>{option.desc}</p><small>{option.meta}</small></span></label>)}<section className="brain-formal-preview"><div><b>选择后的正式知识预览</b><Pill>待负责人确认</Pill></div><p>{choice === "profile" ? "定金 2000 元计入总价；7 天冷静期内可退款，量尺后不支持取消。" : choice === "faq" ? "定金计入总价；退款条件不由机器人承诺，请联系订单负责人核对。" : "定金 2000 元计入总价。关于退款，请以当前正式合同和订单状态为准，由订单负责人为您核对；机器人不作时限或退款承诺。"}</p><Button kind="primary" onClick={() => { notify("已保存定金退款选择，原始冲突来源继续保留"); goTo("brain-decisions"); }}>保存选择并返回</Button></section></div><Card title="来源证据"><div className="brain-evidence-list"><div><b>brand_profile｜付款 FAQ</b><span>写有 7 天冷静期和量尺后不可取消</span></div><div><b>knowledge_documents｜价格/退定/时间</b><span>明确要求不承诺退款条件与时限</span></div><div><b>缺少的最终证据</b><span>当前正式合同模板与退款责任人确认记录</span></div></div><div className="brain-ai-reason"><b>AI 为什么推荐临时安全方案</b><p>两份资料互相否定，且退款属于高风险承诺。融合不能创造新规则，只能在保留冲突的同时转由真人按合同判断。</p></div></Card></div></div>;
 }
 
 function BrainExpansionScreen({ goTo, notify }: Pick<BrainScreenProps, "goTo" | "notify">) {
-  return <div className="brain-page"><section className="brain-task-head"><div><h2>AI 自动扩展模块｜设计师渠道合作</h2><p>上传资料出现现有目录无法覆盖的独立业务主题，系统已自动创建草稿模块。</p></div><Button onClick={()=>goTo("brain-overview")}>返回企业大脑全景</Button></section><div className="brain-expansion-status"><BrainMetric value="3 份" label="形成模块的资料"/><BrainMetric value="8 项" label="已抽取字段"/><BrainMetric value="1 个" label="自动创建模块"/><BrainMetric value="1 个" label="资料不足候选" soft/></div><div className="brain-two-column expansion"><Card title="企业独有标准 / 设计师渠道合作" caption="模块编号 EXT-008 · 草稿版本 v1"><div className="brain-structured-facts">{[["合作对象","室内设计师、独立工作室和设计机构"],["项目报备","客户姓名、项目地址、预计面积和报备时间"],["保护期","首次有效报备后 30 天"],["服务费","按合同回款节点结算；比例以渠道政策为准"],["冲突处理","同一客户重复报备时以首次完整资料为准"],["所需材料","渠道合作协议、收款信息和项目结算单"]].map(row=><div key={row[0]}><b>{row[0]}</b><span>{row[1]}</span></div>)}</div><div className="button-row"><Button kind="primary" onClick={()=>{notify("已确认模块结构并加入 v13 草稿");goTo("brain-release");}}>确认模块结构</Button><Button onClick={()=>notify("已保留草稿，等待补充资料")}>暂不发布</Button></div></Card><div className="stack"><Card title="为什么创建新模块"><p className="brain-card-copy">3 份资料都在描述渠道合作对象、项目报备、服务费和结算，不属于产品、履约或付款政策的子条目。</p></Card><Card title="形成该模块的资料"><div className="brain-source-list">{["设计师渠道合作政策.docx","渠道结算说明.pdf","有大有小品牌手册.pdf"].map((item,index)=><div key={item}><i>{index+1}</i><span><b>{item}</b><small>{index===0?"主来源":"交叉来源"}</small></span><Pill tone="positive">已读取</Pill></div>)}</div></Card><Card title="资料不足的候选"><div className="brain-candidate-row"><span><b>工程项目投标</b><small>仅 1 份资料，暂不创建正式模块</small></span><Pill tone="warning">等待补充</Pill></div></Card></div></div></div>;
+  return <div className="brain-page"><section className="brain-task-head"><div><h2>AI 自动扩展模块｜样板房运营规则</h2><p>“样板房参观规则”和“568 样板房专项政策”形成独立业务主题，建议从活动政策中拆成可复用模块。</p></div><Button onClick={() => goTo("brain-overview")}>返回企业大脑全景</Button></section><div className="brain-expansion-status"><BrainMetric value="2 份" label="真实来源资料"/><BrainMetric value="6 项" label="可抽取字段"/><BrainMetric value="1 个" label="新模块候选"/><BrainMetric value="0 项" label="凭空生成"/></div><div className="brain-two-column expansion"><Card title="企业独有 / 样板房运营规则" caption="候选编号 EXT-001 · 由生产资料自动形成"><div className="brain-structured-facts">{[["活动基础价","568 元/投影㎡，原价 868 元/㎡"],["价格来源","总部补贴 300 元/㎡形成样板房专项价"],["名额规则","按套、按小区申请；使用前读取活动库实时名额"],["品质说明","样板房优先配置资深设计师和高评分安装班组"],["守价纪律","全国统一公开价格，不因客户或谈判改变"],["参观规则","现有资料已识别该主题，详细适用条件需在正式页核对"]].map(row=><div key={row[0]}><b>{row[0]}</b><span>{row[1]}</span></div>)}</div><div className="button-row"><Button kind="primary" onClick={() => { notify("已确认候选结构；进入发布检查前仍需补齐参观适用条件"); goTo("brain-release"); }}>确认模块结构</Button><Button onClick={() => notify("已保留候选，不影响当前生产知识")}>暂不发布</Button></div></Card><div className="stack"><Card title="为什么建议拆成新模块"><p className="brain-card-copy">它同时包含名额、守价、参观、团队配置和活动库校验，已超出单一价格事实；拆开后可被企微、视频和召回共同调用。</p></Card><Card title="形成候选的真实资料"><div className="brain-source-list">{["knowledge_documents｜样板房专项政策：568 是怎么来的","knowledge_documents｜样板房参观规则"].map((item,index)=><div key={item}><i>{index+1}</i><span><b>{item}</b><small>{index===0?"主来源":"交叉来源"}</small></span><Pill tone="positive">已读取</Pill></div>)}</div></Card><Card title="扩展原则"><p className="brain-card-copy">AI 可以新增目录和字段，但不能补写企业没有提供的承诺、价格、有效期或服务能力。</p></Card></div></div></div>;
 }
 
 function BrainReleaseScreen({ goTo, notify }: Pick<BrainScreenProps, "goTo" | "notify">) {
-  const checks=[["来源可追溯","375 / 375 条知识可回到原文件"],["冲突已处理","4 / 4 道选择题已有结论"],["高风险事实","价格、付款和活动均经人工确认"],["有效期检查","五一旧活动自动转为历史版本"],["模块结构","设计师渠道合作已独立建模"],["未知内容","2 项缺口保持未知，未自动编造"]];
-  return <div className="brain-page"><section className="brain-task-head"><div><h2>准备发布｜企业大脑 v13</h2><p>本次由 5 份新文档、4 道选择题和 1 个扩展模块共同生成。</p></div><Button kind="primary" onClick={()=>notify("演示：企业大脑 v13 已发布，可随时回滚到 v12")}>发布 v13</Button></section><div className="brain-version-compare"><section><div><b>已发布大脑 v12</b><Pill tone="positive">线上使用中</Pill></div><p>289 条知识｜10 个模块｜2026-07-28 发布</p><small>当前被企微销售、视频生成和召回模块调用</small></section><section className="draft"><div><b>草稿大脑 v13</b><Pill tone="warning">准备发布</Pill></div><p>375 条知识｜11 个模块｜4 项决策已完成</p><small>发布后替换 v12，可随时回滚</small></section></div><div className="brain-release-metrics"><BrainMetric value="+86" label="新增知识"/><BrainMetric value="+1" label="扩展模块"/><BrainMetric value="4/4" label="已完成决策"/><BrainMetric value="-1" label="过期政策归档"/><BrainMetric value="5 份" label="新增资料"/></div><div className="brain-release-grid"><Card title="发布质量检查" action={<Pill tone="positive">全部通过</Pill>}><div className="brain-check-list">{checks.map(row=><div key={row[0]}><span><b>{row[0]}</b><small>{row[1]}</small></span><Pill tone="positive">通过</Pill></div>)}</div></Card><Card title="v12 → v13 主要变化"><div className="brain-change-list">{[["产品服务","568 套餐价格、配置和不包含项","更新 18 条"],["商务政策","按有效期保留 498 / 568 两个活动版本","更新 9 条"],["用户画像","补充改造阶段和旧改客户特征","更新 3 条"],["履约 SOP","新增上门量房和企微留档节点","更新 12 条"],["设计师渠道合作","从 3 份资料自动创建新模块","新增模块"],["售后与质保","仍缺少退款和赔付细则","保持缺口"]].map(row=><div key={row[0]}><span><b>{row[0]}</b><small>{row[1]}</small></span><Pill tone={row[2].includes("缺口")?"warning":"neutral"}>{row[2]}</Pill></div>)}</div></Card></div><section className="brain-publish-footer"><div><b>安全发布</b><span>发布后保留完整版本记录；发现问题可一键回滚到 v12。</span></div><Button kind="primary" onClick={()=>{notify("已确认发布企业大脑 v13");goTo("brain-overview");}}>确认发布企业大脑 v13</Button></section></div>;
+  const checks = [["来源可追溯","企业事实均标注真实表和文档标题","通过"],["隐私检查","对话原文、完整地址和密钥不进入公开页","通过"],["内容边界","聊天节奏和销售技巧未进入企业大脑","通过"],["定金退款","两个生产来源冲突，等待负责人选择","阻塞"],["加急政策","周期和费率存在多个版本，等待确认","阻塞"],["售后 SLA","两套响应时限尚未统一","阻塞"]];
+  return <div className="brain-page"><section className="brain-task-head"><div><h2>生产快照发布检查｜{PRODUCTION_SNAPSHOT_AT}</h2><p>真实数据已完成脱敏映射；3 个承诺冲突未解决前，不应标记为正式发布版本。</p></div><Button disabled kind="primary">解决 3 项冲突后发布</Button></section><div className="brain-version-compare"><section><div><b>当前 GitHub 原型</b><Pill tone="neutral">旧演示数据</Pill></div><p>页面结构可用｜企业大脑内容为模拟填充</p><small>将被本次真实生产快照替换</small></section><section className="draft"><div><b>真实数据草稿</b><Pill tone="warning">待发布</Pill></div><p>67 份企业文档｜362 条行业知识｜3 项阻塞</p><small>公开版仅包含脱敏事实和行业知识元数据</small></section></div><div className="brain-release-metrics"><BrainMetric value="67 份" label="企业资料"/><BrainMetric value="362 条" label="行业条目"/><BrainMetric value="2,987 段" label="检索切片"/><BrainMetric value="3 项" label="发布阻塞" soft/><BrainMetric value="206 段" label="对话已隔离"/></div><div className="brain-release-grid"><Card title="发布质量检查" action={<Pill tone="warning">3 项待处理</Pill>}><div className="brain-check-list">{checks.map(row=><div key={row[0]}><span><b>{row[0]}</b><small>{row[1]}</small></span><Pill tone={row[2] === "通过" ? "positive" : "warning"}>{row[2]}</Pill></div>)}</div></Card><Card title="生产数据组成"><div className="brain-change-list">{[["品牌档案","3 条记录，1 条包含完整业务档案","1 条可用"],["企业知识文档","产品 23 · 价格 20 · 流程 14 · FAQ 5 · 脚本 5","67 份"],["行业知识","装修流程、预算、工艺、验收与避坑","362 条"],["检索切片","由行业知识拆成的语义检索片段","2,987 段"],["历史销售对话","持续培育 117 · 决策 74 · 破冰 15","隔离"],["决策规则","不直接替代企业负责人确认","36 条"]].map(row=><div key={row[0]}><span><b>{row[0]}</b><small>{row[1]}</small></span><Pill tone={row[2] === "隔离" ? "info" : "neutral"}>{row[2]}</Pill></div>)}</div></Card></div><section className="brain-publish-footer"><div><b>当前正确动作</b><span>先完成定金、加急和售后 3 道选择题，再生成可回滚的正式版本。</span></div><Button kind="primary" onClick={() => { notify("已返回待决策中心"); goTo("brain-decisions"); }}>去处理真实冲突</Button></section><Card title="对话资料隔离统计" caption="只用于企微对话训练，不作为企业大脑模块"><div className="brain-fact-list">{conversationStageCounts.map(([stage,count,score])=><div key={stage}><span><b>{stage}</b><small>平均质量分 {score}</small></span><Pill>{count} 段</Pill></div>)}</div></Card></div>;
 }
 
-export function BrainScreenContent({
-  id,
-  goTo,
-  notify,
-}: BrainScreenProps & { id: string }) {
+export function BrainScreenContent({ id, goTo, notify }: BrainScreenProps & { id: string }) {
   switch (id) {
     case "brain-inbox": return <BrainInboxScreen goTo={goTo} notify={notify} />;
     case "brain-processing": return <BrainProcessingScreen goTo={goTo} />;
