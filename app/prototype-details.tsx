@@ -498,7 +498,7 @@ function VideoSliceDetail({ screen, goTo, notify, context }: DetailPageProps) {
 }
 
 function VideoSpokespersonDetail({ screen, goTo, notify, context }: DetailPageProps) {
-  const name = context?.spokespersonName ?? "杜海鹏";
+  const name = context?.spokespersonName ?? "主播库真人样例";
   const focus = context?.materialType ?? "全部照片和视频";
   const canUpdateMain = context?.sourceReady === "yes" && focus === "不同语气示范";
   const [authorized, setAuthorized] = useState(true);
@@ -537,11 +537,16 @@ function VideoSpokespersonDetail({ screen, goTo, notify, context }: DetailPagePr
     >
       <div style={ui.stack}>
         <div className="customer-profile">
-          <div className="avatar-large">{name.slice(0, 1)}</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt="主播库真人样例的正面形象"
+            className="spokesperson-detail-avatar"
+            src={spokespersonPosterByMaterial["正面讲话"]}
+          />
           <div>
-            <h3>{name}｜漳州龙文店店长</h3>
-            <p>用途：制作本店短视频口播；不会用于其他门店。</p>
-            <div className="chip-wrap"><Pill tone="positive">身份已核对</Pill><Pill tone={needsRetake.length === 0 ? "positive" : "warning"}>{needsRetake.length === 0 ? "没有待重拍项目" : `${needsRetake.length} 项建议重拍`}</Pill><Pill tone={allVideosChecked ? "positive" : "warning"}>已检查 {requiredVideoChecks.filter((item) => watched.includes(item)).length} / 3 段视频</Pill></div>
+            <h3>{name}｜专业讲解型</h3>
+            <p>这是素材库中的真人授权样例，用来演示店长口播素材的检查方法。</p>
+            <div className="chip-wrap"><Pill tone="positive">素材来源已核对</Pill><Pill tone={needsRetake.length === 0 ? "positive" : "warning"}>{needsRetake.length === 0 ? "没有待重拍项目" : `${needsRetake.length} 项建议重拍`}</Pill><Pill tone={allVideosChecked ? "positive" : "warning"}>已检查 {requiredVideoChecks.filter((item) => watched.includes(item)).length} / 3 段视频</Pill></div>
           </div>
         </div>
         <div style={ui.explanation}>

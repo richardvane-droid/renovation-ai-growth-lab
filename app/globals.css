@@ -1308,7 +1308,6 @@ select:focus-visible {
   grid-row: span 2;
 }
 
-.portrait-placeholder,
 .avatar-large {
   align-items: center;
   background: linear-gradient(135deg,#272a2d,#7d8b84);
@@ -1319,6 +1318,15 @@ select:focus-visible {
   font-weight: 800;
   height: 190px;
   justify-content: center;
+}
+
+.profile-portrait {
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  display: block;
+  object-fit: cover;
+  object-position: center 30%;
+  width: 100%;
 }
 
 .profile-meta {
@@ -1731,12 +1739,14 @@ select:focus-visible {
 }
 
 .simulation-layout {
+  align-items: start;
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(0,1fr) 210px;
 }
 
 .simulation-chat {
+  container-type: inline-size;
   display: grid;
   gap: 8px;
 }
@@ -1850,9 +1860,16 @@ select:focus-visible {
   padding: 8px;
 }
 
-.score-grid label > div { display: flex; gap: 4px; }
+.score-grid label > span { flex: 0 0 auto; line-height: 1.5; white-space: nowrap; }
+.score-grid label > div { display: flex; flex: 0 0 auto; gap: 4px; }
 .score-grid button { background: #fff; border: 1px solid var(--line); border-radius: 5px; font-size: 11px; height: 34px; min-height: 34px; width: 34px; }
 .score-grid button.active { background: #333; border-color: #333; color: #fff; }
+
+@container (max-width: 760px) {
+  .score-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 .score-legend {
   background: var(--info-bg);
@@ -2562,6 +2579,7 @@ textarea {
 .recall-detail { display:grid; gap:10px; }
 .customer-profile { align-items:center; background:#f7f7f7; border-radius:8px; display:grid; gap:10px; grid-template-columns:70px 1fr; padding:10px; }
 .avatar-large { font-size:22px; height:70px; width:70px; }
+.spokesperson-detail-avatar { border-radius:8px; height:70px; object-fit:cover; object-position:center 28%; width:70px; }
 .customer-profile h3 { font-size: 15px; margin:0; }
 .customer-profile p { color:var(--muted); font-size: 12px; }
 

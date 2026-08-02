@@ -979,6 +979,7 @@ function SliceScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
 function SpokespersonScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
   useWorkflowBridge();
   const [thirdVideo, setThirdVideo] = useState<({ name: string } & FileUploadPreview) | null>(null);
+  const libraryPresenterName = "主播库真人样例";
   const specs = [
     ["正面讲话", "竖屏 · 30–60 秒", "镜头与眼睛同高，照着页面台词说一段门店介绍", "已完成"],
     ["自然动作", "竖屏 · 15–30 秒", "腰部以上入镜，左右转身并做自然手势", "已完成"],
@@ -986,13 +987,18 @@ function SpokespersonScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify
   ];
   return (
     <div className="spokesperson-layout">
-      <Card title="出镜人信息" caption="示例：门店店长 · 杜海鹏" className="profile-card">
-        <div className="portrait-placeholder">杜</div>
+      <Card title="店长形象" caption="演示使用素材库中的真人主播样例" className="profile-card">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          alt="主播库真人样例的正面形象"
+          className="profile-portrait"
+          src={spokespersonPosterByMaterial["正面讲话"]}
+        />
         <div className="profile-meta">
-          <b>杜店长｜漳州龙文店</b>
-          <span>角色：专业顾问型店长</span>
+          <b>主播库真人样例｜专业讲解型</b>
+          <span>用途：演示店长形象和口播素材要求</span>
           <span>适合：工艺讲解、门店介绍、方案邀约</span>
-          <Pill tone="positive">本人授权已确认 · 可随时撤回</Pill>
+          <Pill tone="positive">真人素材 · 授权来源已记录</Pill>
         </div>
         <FileUpload accept="image/*" label="替换正面照片" onUpload={(name) => notify(`${name} 已设为店长正面照片`)} />
       </Card>
@@ -1009,23 +1015,23 @@ function SpokespersonScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify
             <div><b>{title}</b><span>{spec}</span><small>{description}</small></div>
             <Pill tone={status === "已完成" ? "positive" : "warning"}>{status}</Pill>
             {status === "已完成" ? (
-              <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: "杜海鹏", materialType: title, sourceReady: index === 2 && thirdVideo ? "yes" : "no" })}>检查这项</Button>
+              <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: libraryPresenterName, materialType: title, sourceReady: index === 2 && thirdVideo ? "yes" : "no" })}>检查这项</Button>
             ) : thirdVideo ? (
-              <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: "杜海鹏", materialType: title, sourceReady: "yes" })}>检查刚上传的视频</Button>
+              <Button onClick={() => goTo("video-spokesperson-detail", { spokespersonName: libraryPresenterName, materialType: title, sourceReady: "yes" })}>检查刚上传的视频</Button>
             ) : (
               <FileUpload accept="video/*" label="上传视频" onUpload={(name, preview) => { setThirdVideo({ name, ...(preview ?? {}) }); notify(`${name} 已上传，下一步请检查画面和声音`); }} />
             )}
           </div>
         ))}
       </Card>
-      <Card title="合格示例" caption="演示：杜店长介绍门店活动和板材配置" className="demo-card">
+      <Card title="合格示例" caption="素材库真人主播的正面讲解画面" className="demo-card">
         <VideoCover
           alt="合格出镜示例的视频预览帧"
           label="00:38 · 查看示例"
           portrait
           src={spokespersonPosterByMaterial["合格示例"]}
         />
-        <p>镜头平视、安静环境、人物腰部以上入镜；开头停顿 1 秒，结尾保持自然表情 2 秒。</p>
+        <p>这是素材库中的真人视频帧。镜头平视、安静环境、人物腰部以上入镜；开头停顿 1 秒，结尾保持自然表情 2 秒。</p>
       </Card>
     </div>
   );

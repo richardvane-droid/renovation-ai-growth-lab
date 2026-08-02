@@ -177,6 +177,28 @@ test("uses real video frames for every video preview", async () => {
   assert.match(css, /\.media-cover > img\s*\{[\s\S]*?object-fit:\s*cover/);
 });
 
+test("keeps tablet scoring readable and uses the real presenter sample", async () => {
+  const [screenSource, detailSource, css] = await Promise.all([
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-details.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(css, /\.simulation-layout\s*\{[\s\S]*?align-items:\s*start/);
+  assert.match(css, /\.simulation-chat\s*\{[\s\S]*?container-type:\s*inline-size/);
+  assert.match(css, /\.score-grid label > span\s*\{[^}]*white-space:\s*nowrap/);
+  assert.match(css, /@container \(max-width:\s*760px\)\s*\{[\s\S]*?\.score-grid\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
+
+  assert.match(screenSource, /className="profile-portrait"/);
+  assert.match(screenSource, /src=\{spokespersonPosterByMaterial\["正面讲话"\]\}/);
+  assert.match(screenSource, /主播库真人样例/);
+  assert.doesNotMatch(screenSource, /portrait-placeholder/);
+  assert.match(detailSource, /className="spokesperson-detail-avatar"/);
+  assert.match(detailSource, /这是素材库中的真人授权样例/);
+  assert.match(css, /\.profile-portrait\s*\{[\s\S]*?object-fit:\s*cover/);
+  assert.match(css, /\.spokesperson-detail-avatar\s*\{[^}]*object-fit:\s*cover/);
+});
+
 test("uses one continuous page scroll instead of a boxed inner scroller", async () => {
   const css = await readFile(
     new URL("../app/globals.css", import.meta.url),
