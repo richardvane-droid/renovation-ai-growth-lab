@@ -36,7 +36,7 @@ test("server-renders the paid account entrance", async () => {
   );
   assert.match(
     html,
-    /<meta name="description" content="AKKE 全屋定制门店营销助手的操作演示，包含短视频获客、企微自动接待和沉默客户跟进。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
+    /<meta name="description" content="AKKE 全屋定制门店营销助手的操作演示，包含短视频获客、企微自动接待、沉默客户跟进和企业大脑。页面均为演示数据，不会向真实客户发送消息。"\s*\/?>/,
   );
 
   assert.match(html, /门店营销助手/);
@@ -56,6 +56,9 @@ test("server-renders the paid account entrance", async () => {
 
 test("ships only page-specific operation demos", async () => {
   const expected = [
+    "brain-gaps.mp4",
+    "brain-import.mp4",
+    "brain-trace.mp4",
     "recall-coupon.mp4",
     "recall-poster.mp4",
     "sales-plugins.mp4",
@@ -102,6 +105,17 @@ test("ships only page-specific operation demos", async () => {
   assert.doesNotMatch(screenSource, /先看完视频并完成 5 项人工确认/);
   assert.match(screenSource, />下载第 3 版<\/a>/);
   assert.match(pageSource, /<PageDemoVideo key=\{pageDemo\.src\}/);
+  for (const id of ["brain-import", "brain-gaps", "brain-trace"]) {
+    assert.match(
+      pageSource,
+      new RegExp(`"${id}": \\{[\\s\\S]*?src: "\\./demos/${id}\\.mp4"[\\s\\S]*?poster: "\\./video-previews/demo-${id}\\.jpg"`),
+    );
+  }
+  assert.match(pageSource, /const pageDemo = pageDemos\[screen\.id\]/);
+  assert.match(pageSource, /\{pageDemo && \([\s\S]*?<PageDemoVideo key=\{pageDemo\.src\} demo=\{pageDemo\} \/>/);
+  assert.match(generatorSource, /id: "brain-import"[\s\S]*?确认这 36 条内容并使用/);
+  assert.match(generatorSource, /id: "brain-gaps"[\s\S]*?资料齐全，生成回答草稿[\s\S]*?确认无误/);
+  assert.match(generatorSource, /id: "brain-trace"[\s\S]*?回答可以使用/);
   assert.doesNotMatch(pageSource, /DemoVideo module=/);
   assert.doesNotMatch(pageSource, /Record<ModuleKey,\s*\{\s*src:/);
 });
@@ -309,6 +323,51 @@ test("puts daily work first and folds low-frequency setup out of the way", async
   assert.match(css, /\.task-nav-groups\s*\{/);
   assert.match(css, /\.setup-nav\s*\{[\s\S]*?border-top:/);
   assert.match(css, /\.setup-nav \.screen-nav button\s*\{[\s\S]*?color: var\(--muted\)/);
+});
+
+test("keeps enterprise brain plain, compact, and actionable for a store manager", async () => {
+  const [pageSource, dataSource, brainSource, screenSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-brain.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-screens.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(pageSource, /\["video", "sales", "recall", "brain"\]/);
+  assert.match(dataSource, /brain: \{ index: "04", label: "企业大脑", caption: "让机器人说得准" \}/);
+  assert.equal([...dataSource.matchAll(/module: "brain"/g)].length, 7);
+  assert.equal([...dataSource.matchAll(/id: "brain-(?:today|gaps|trace)"[\s\S]*?cadence: "daily"/g)].length, 3);
+  assert.equal([...dataSource.matchAll(/id: "brain-(?:import|facts|guidance|assets)"[\s\S]*?cadence: "setup"/g)].length, 4);
+  assert.doesNotMatch(dataSource, /module: "brain"[\s\S]{0,120}detail: true/);
+  assert.match(screenSource, /<BrainScreenContent id=\{screen\.id\} goTo=\{goTo\} notify=\{notify\} \/>/);
+
+  assert.match(brainSource, /以前三个功能上传过的资料会自动到这里/);
+  assert.match(brainSource, /确认这 36 条内容并使用/);
+  assert.match(brainSource, /没有文字版时，请向资料负责人索取可复制版本/);
+  assert.match(brainSource, /在 02-02 标为“可借鉴”的销售回复会自动到这里/);
+  assert.match(brainSource, /销售回复（已在 02-02 标为可借鉴）<\/b><p>\{sourceAnswer\}<\/p>/);
+  assert.match(brainSource, /enabledIds\.includes\(asset\.id\)/);
+  assert.match(brainSource, /const remainingCount = customerAssets\.filter/);
+  assert.match(brainSource, /按本店当前产品说明和安装要求/);
+  assert.match(brainSource, /const factsReady =/);
+  assert.match(brainSource, /const \[answerReviewed, setAnswerReviewed\]/);
+  assert.match(brainSource, /const \[uploadedStatus, setUploadedStatus\]/);
+  assert.match(brainSource, /const \[riskEdits, setRiskEdits\]/);
+  assert.match(brainSource, /title=\{remaining \? "从第一条开始处理" : "今天的检查已完成"\}/);
+  assert.match(brainSource, /const reader = new FileReader\(\)/);
+  assert.match(brainSource, /停止使用/);
+  assert.match(brainSource, /回答可以使用/);
+  assert.match(brainSource, /记录这个问题/);
+  assert.match(brainSource, /function reopenBrainTask\(id: BrainDailyTaskId\)/);
+  assert.match(brainSource, /reopenBrainTask\("brain-gaps"\)/);
+  assert.match(brainSource, /reopenBrainTask\("brain-trace"\)/);
+  assert.doesNotMatch(brainSource, /加入今天待办/);
+  assert.doesNotMatch(brainSource, /按本店的\$\{source\}/);
+  assert.doesNotMatch(brainSource, /查看内部记录编号/);
+
+  for (const jargon of ["向量化", "语义切片", "固定注入", "调用点", "Top3", "置信度", "阈值", "资料架", "DO/DON’T"]) {
+    assert.doesNotMatch(brainSource, new RegExp(jargon));
+  }
 });
 
 test("gates the product behind registration, login, and a clear demo payment", async () => {

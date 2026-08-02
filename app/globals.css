@@ -2583,6 +2583,760 @@ textarea {
 .audit-line span { color:var(--positive); }
 .detail-check-label { font-size: 12px; }
 
+.brain-page {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+}
+
+.brain-overview {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 360px);
+}
+
+.brain-overview > div {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 14px;
+}
+
+.brain-overview span,
+.brain-overview small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-overview strong {
+  font-size: 24px;
+}
+
+.brain-task-list {
+  display: grid;
+  gap: 8px;
+}
+
+.brain-task {
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  padding: 12px;
+}
+
+.brain-task-current {
+  background: #fffaf0;
+  border-color: #d9b96f;
+}
+
+.brain-task-done {
+  background: var(--positive-bg);
+  color: #4e6758;
+}
+
+.brain-task-order {
+  align-items: center;
+  background: var(--ink);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-size: 13px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.brain-task-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.brain-task-copy .chip-wrap span:not(.pill) {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-task-copy h3,
+.brain-gap-heading h2,
+.brain-trace-heading h2 {
+  margin: 0;
+}
+
+.brain-task-copy h3 {
+  font-size: 15px;
+}
+
+.brain-task-copy p,
+.brain-gap-heading p,
+.brain-trace-heading p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.brain-plain-note,
+.brain-sync-note,
+.brain-upload-result,
+.brain-form-reminder {
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  padding: 11px 13px;
+}
+
+.brain-plain-note,
+.brain-sync-note {
+  align-items: start;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.brain-plain-note {
+  background: #f6f6f6;
+}
+
+.brain-sync-note {
+  background: var(--info-bg);
+  border: 1px solid #c8dcff;
+}
+
+.brain-plain-note span,
+.brain-sync-note span {
+  color: var(--muted);
+}
+
+.brain-upload-button {
+  cursor: pointer;
+}
+
+.brain-upload-button input {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.brain-upload-button:has(input:focus-visible) {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+
+.brain-upload-result {
+  align-items: center;
+  background: var(--info-bg);
+  color: var(--info);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.brain-document-list {
+  display: grid;
+  gap: 7px;
+}
+
+.brain-document-list > button {
+  align-items: center;
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 9px 11px;
+  text-align: left;
+  width: 100%;
+}
+
+.brain-document-list > button.active {
+  background: var(--info-bg);
+  border-color: #8eb2ed;
+}
+
+.brain-document-list > button > div {
+  display: grid;
+  gap: 2px;
+}
+
+.brain-document-list b {
+  font-size: 13px;
+}
+
+.brain-document-list span:not(.pill) {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-three-steps {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.brain-three-steps > div {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.brain-three-steps i {
+  align-items: center;
+  background: #ddd;
+  border-radius: 50%;
+  display: flex;
+  font-size: 11px;
+  font-style: normal;
+  height: 22px;
+  justify-content: center;
+  width: 22px;
+}
+
+.brain-three-steps b {
+  font-size: 13px;
+}
+
+.brain-three-steps span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-three-steps .done {
+  background: var(--positive-bg);
+  border-color: #b9dfc8;
+}
+
+.brain-three-steps .done i {
+  background: var(--positive);
+  color: #fff;
+}
+
+.brain-three-steps .current {
+  background: var(--warning-bg);
+  border-color: #e3c06b;
+}
+
+.brain-three-steps .current i {
+  background: var(--warning);
+  color: #fff;
+}
+
+.brain-three-steps .waiting {
+  color: var(--muted);
+}
+
+.brain-review-grid,
+.brain-form-grid,
+.brain-asset-review,
+.brain-trace-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.brain-review-grid > section,
+.brain-rule-grid > div,
+.brain-rule-test,
+.brain-answer-preview,
+.brain-replace-file {
+  background: #f8f8f8;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+}
+
+.brain-review-grid b,
+.brain-replace-file b {
+  font-size: 13px;
+}
+
+.brain-review-grid p,
+.brain-replace-file p,
+.brain-answer-preview p,
+.brain-rule-grid p,
+.brain-rule-test p {
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.brain-before {
+  border-radius: 5px;
+  padding: 8px;
+}
+
+.brain-before {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.brain-check-line {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 7px;
+  min-height: 44px;
+  padding: 8px 0;
+  text-align: left;
+  width: 100%;
+}
+
+.brain-check-line:hover span:last-child,
+.brain-check-line:focus-visible span:last-child {
+  color: var(--info);
+}
+
+.brain-check-line:disabled {
+  cursor: default;
+  opacity: .72;
+}
+
+.brain-check-line-readonly {
+  cursor: default;
+}
+
+.brain-check-line-readonly:hover span:last-child {
+  color: inherit;
+}
+
+.brain-check-line-readonly .brain-check-box {
+  background: var(--positive);
+  border-color: var(--positive);
+}
+
+.brain-check-box {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--line-dark);
+  border-radius: 3px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 16px;
+  font-size: 11px;
+  height: 16px;
+  justify-content: center;
+  margin-top: 1px;
+  width: 16px;
+}
+
+.brain-check-line[aria-pressed="true"] .brain-check-box {
+  background: var(--info);
+  border-color: var(--info);
+}
+
+.brain-replace-file {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.brain-field {
+  display: grid;
+  font-size: 13px;
+  gap: 5px;
+}
+
+.brain-field > span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.brain-field input,
+.brain-field textarea {
+  background: #fff;
+  border: 1px solid var(--line-dark);
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.65;
+  padding: 9px;
+  width: 100%;
+}
+
+.brain-field input {
+  min-height: 42px;
+}
+
+.brain-field textarea {
+  min-height: 92px;
+  resize: vertical;
+}
+
+.brain-field-wide {
+  grid-column: 1 / -1;
+}
+
+.brain-answer-preview {
+  margin-top: 10px;
+}
+
+.brain-answer-preview b,
+.brain-rule-grid b,
+.brain-rule-test b {
+  font-size: 13px;
+}
+
+.brain-answer-preview small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-save-row {
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.brain-history {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+
+.brain-history summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.brain-history p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 8px 0 0;
+}
+
+.brain-conversation {
+  display: grid;
+  gap: 8px;
+}
+
+.brain-conversation > div {
+  border-radius: 7px;
+  display: grid;
+  gap: 3px;
+  max-width: 92%;
+  padding: 9px 10px;
+}
+
+.brain-conversation .customer {
+  background: #f2f2f2;
+}
+
+.brain-conversation .assistant {
+  background: var(--info-bg);
+  justify-self: end;
+}
+
+.brain-conversation .result {
+  background: var(--positive-bg);
+  max-width: 100%;
+}
+
+.brain-conversation b {
+  font-size: 11px;
+}
+
+.brain-conversation p {
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.brain-answer-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0;
+}
+
+.brain-test-pass {
+  background: var(--positive-bg);
+  border-radius: 6px;
+  color: var(--positive);
+  font-size: 12px;
+  padding: 7px 9px;
+}
+
+.brain-answer-checks span {
+  background: #f5f5f5;
+  color: #555;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 7px 9px;
+}
+
+.brain-answer-checks .passed {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.brain-answer-checks .failed {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.brain-rule-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.brain-rule-test {
+  margin-top: 10px;
+}
+
+.brain-rule-test .brain-test-pass {
+  margin-top: 2px;
+}
+
+.brain-test-result {
+  background: var(--info-bg);
+  border-radius: 7px;
+  display: grid;
+  gap: 5px;
+  margin-top: 3px;
+  padding: 9px;
+}
+
+.brain-test-result p {
+  margin: 0;
+}
+
+.brain-test-result span {
+  color: var(--positive);
+  font-size: 12px;
+}
+
+.brain-asset-grid {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.brain-asset-grid > button {
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+}
+
+.brain-asset-grid > button.active {
+  border-color: var(--info);
+  box-shadow: 0 0 0 1px var(--info);
+}
+
+.brain-asset-grid img {
+  aspect-ratio: 16 / 9;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.brain-asset-grid > button > div {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 9px;
+}
+
+.brain-asset-grid b {
+  font-size: 12px;
+}
+
+.brain-condition-list {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.brain-condition-list > div {
+  background: #f8f8f8;
+  border-radius: 6px;
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+}
+
+.brain-condition-list dt {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.brain-condition-list dd {
+  color: #555;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.brain-asset-source {
+  align-items: center;
+  background: #f7f7f7;
+  border-radius: 7px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 9px;
+}
+
+.brain-asset-source span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-chat-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.brain-chat-preview p {
+  background: var(--info-bg);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+  padding: 10px;
+}
+
+.brain-chat-preview img {
+  border-radius: 8px;
+  display: block;
+  height: auto;
+  object-fit: contain;
+  width: 100%;
+}
+
+.brain-chat-preview small {
+  color: var(--muted);
+}
+
+.brain-preview-empty {
+  align-items: center;
+  background: #f7f7f7;
+  border: 1px dashed var(--line-dark);
+  border-radius: 8px;
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+  min-height: 220px;
+}
+
+.brain-gap-heading,
+.brain-trace-heading {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.brain-gap-heading > div,
+.brain-trace-heading > div {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.brain-gap-heading > div > span,
+.brain-trace-heading > div > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-gap-heading h2,
+.brain-trace-heading h2 {
+  font-size: 20px;
+}
+
+.brain-form-reminder {
+  background: var(--warning-bg);
+  color: var(--warning);
+  margin: 10px 0;
+}
+
+.brain-evidence-list {
+  display: grid;
+  gap: 7px;
+}
+
+.brain-evidence-list > div {
+  background: #f8f8f8;
+  border-radius: 6px;
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+}
+
+.brain-evidence-list b {
+  font-size: 12px;
+}
+
+.brain-evidence-list span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brain-evidence-list q {
+  border-left: 2px solid var(--line-dark);
+  color: #444;
+  font-size: 12px;
+  line-height: 1.6;
+  padding-left: 8px;
+}
+
+.brain-evidence-list + .brain-history {
+  margin-top: 8px;
+}
+
+.brain-decision-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.brain-problem-form {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.brain-problem-form .ui-button {
+  justify-self: start;
+}
+
+.brain-decision-row + .brain-test-pass,
+.brain-problem-form + .brain-test-pass {
+  margin-top: 10px;
+}
+
 @media (max-width: 1380px) {
   .product-app {
     grid-template-columns: 250px minmax(0, 1fr);
@@ -2625,7 +3379,7 @@ textarea {
   }
   .module-nav {
     gap: 7px;
-    grid-template-columns: repeat(3,1fr);
+    grid-template-columns: repeat(4,1fr);
   }
   .module-nav button {
     background: transparent;
@@ -2728,6 +3482,39 @@ textarea {
   .quality-layout,
   .detail-layout {
     grid-template-columns: 1fr;
+  }
+  .brain-overview,
+  .brain-review-grid,
+  .brain-form-grid,
+  .brain-asset-review,
+  .brain-trace-grid,
+  .brain-rule-grid,
+  .brain-three-steps {
+    grid-template-columns: 1fr;
+  }
+  .brain-field-wide {
+    grid-column: auto;
+  }
+  .brain-task {
+    align-items: start;
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+  .brain-task .ui-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .brain-plain-note,
+  .brain-sync-note,
+  .brain-replace-file {
+    grid-template-columns: 1fr;
+  }
+  .brain-upload-result,
+  .brain-asset-source {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .brain-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .profile-card,
   .result-player {
@@ -2890,6 +3677,12 @@ textarea {
   .sample-table button,
   .faq-table button {
     min-height: 40px;
+  }
+}
+
+@media (max-width: 520px) {
+  .brain-asset-grid {
+    grid-template-columns: 1fr;
   }
 }
 

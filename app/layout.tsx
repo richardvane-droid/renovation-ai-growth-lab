@@ -4,7 +4,7 @@ import "./globals.css";
 
 const title = "AKKE｜门店营销助手｜V4.1 交互原型";
 const description =
-  "AKKE 全屋定制门店营销助手的操作演示，包含短视频获客、企微自动接待和沉默客户跟进。页面均为演示数据，不会向真实客户发送消息。";
+  "AKKE 全屋定制门店营销助手的操作演示，包含短视频获客、企微自动接待、沉默客户跟进和企业大脑。页面均为演示数据，不会向真实客户发送消息。";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

@@ -292,6 +292,97 @@ const pageDemos = [
       },
     ],
   },
+  {
+    id: "brain-import",
+    accent: "#7c3aed",
+    posterAt: 10.5,
+    title: "核对并确认一份企业资料",
+    steps: [
+      {
+        action: ["先点一份黄色或红色资料", "绿色资料不用逐份检查"],
+        result: "下方显示这份资料需要店长处理的内容。",
+        focus: [0.53, 0.42],
+      },
+      {
+        action: ["核对系统改写前后的说法", "确认没有夸大价格或服务承诺"],
+        result: "改写后的内容符合门店当前实际情况。",
+        focus: [0.24, 0.67],
+        source: "lower",
+      },
+      {
+        action: ["核对系统分好的三类", "确认 20 + 9 + 7 一共是 36 条"],
+        result: "价格、回答和规则三类与资料内容一致。",
+        focus: [0.72, 0.49],
+        source: "lower",
+      },
+      {
+        action: ["点“确认这 36 条内容并使用”", "确认后会自动供其他功能使用"],
+        result: "资料状态变为“可以使用”，本页完成。",
+        focus: [0.15, 0.93],
+        source: "lower",
+      },
+    ],
+  },
+  {
+    id: "brain-gaps",
+    accent: "#7c3aed",
+    posterAt: 10.5,
+    title: "补齐事实并生成可靠回答",
+    steps: [
+      {
+        action: ["先看客户最常问的问题", "确认这确实是本店需要补的答案"],
+        result: "本页只处理“PET 门板靠灶台”这一件事。",
+        focus: [0.48, 0.25],
+      },
+      {
+        action: ["按门店资料填写 4 项事实", "最后写清依据来自哪份资料"],
+        result: "五项内容都填写清楚，生成按钮可以点击。",
+        focus: [0.5, 0.47],
+        source: "lower",
+      },
+      {
+        action: ["点“资料齐全，生成回答草稿”", "资料不齐时不要猜着填写"],
+        result: "页面下方出现一份待检查的回答草稿。",
+        focus: [0.16, 0.85],
+        source: "lower",
+      },
+      {
+        action: ["核对草稿，再点“确认无误”", "确认前不会用于真实客户"],
+        result: "状态变为“已审核并开始使用”，本页完成。",
+        focus: [0.12, 0.91],
+        source: "draft",
+      },
+    ],
+  },
+  {
+    id: "brain-trace",
+    accent: "#7c3aed",
+    posterAt: 7.5,
+    title: "核对一条机器人回答",
+    steps: [
+      {
+        action: ["先读客户问了什么", "不要只看客户后来有没有继续聊"],
+        result: "确认客户问的是 568 元套餐包含项。",
+        focus: [0.25, 0.42],
+      },
+      {
+        action: ["再读机器人最终回答", "检查是否答到问题、有没有乱承诺"],
+        result: "回答说明了包含项、不包含项和下一步。",
+        focus: [0.28, 0.56],
+      },
+      {
+        action: ["核对右侧列出的门店依据", "每一句关键信息都要找得到来源"],
+        result: "价格、套餐和说法都有当前可用的依据。",
+        focus: [0.75, 0.48],
+      },
+      {
+        action: ["确认无误后点“回答可以使用”", "有问题时改选旁边的红色按钮"],
+        result: "看到“本条回答已完成评价”，本页完成。",
+        focus: [0.1, 0.88],
+        source: "lower",
+      },
+    ],
+  },
 ];
 
 const obsoleteModuleVideos = [
@@ -417,8 +508,9 @@ async function assertSources() {
   await access(path.join(outputDir, "finished-kitchen-video.mp4"));
   for (const demo of pageDemos) {
     await access(path.join(sourceDir, `${demo.id}.png`));
-    if (demo.steps.some((step) => step.source === "lower")) {
-      await access(path.join(sourceDir, `${demo.id}-lower.png`));
+    const sourceVariants = new Set(demo.steps.map((step) => step.source).filter(Boolean));
+    for (const variant of sourceVariants) {
+      await access(path.join(sourceDir, `${demo.id}-${variant}.png`));
     }
   }
 }
@@ -439,9 +531,15 @@ async function renderPageDemo(demo, tempRoot) {
   const frameNames = [];
   for (let index = 0; index < demo.steps.length; index += 1) {
     const step = demo.steps[index];
-    const source = step.source === "lower"
-      ? await readFile(path.join(sourceDir, `${demo.id}-lower.png`))
+    const source = step.source
+      ? await readFile(path.join(sourceDir, `${demo.id}-${step.source}.png`))
       : mainSource;
+    const sourceMetadata = await sharp(source).metadata();
+    if (sourceMetadata.width !== SOURCE_WIDTH || sourceMetadata.height !== SOURCE_HEIGHT) {
+      throw new Error(
+        `${demo.id}${step.source ? `-${step.source}` : ""}.png 尺寸应为 ${SOURCE_WIDTH}×${SOURCE_HEIGHT}，实际为 ${sourceMetadata.width}×${sourceMetadata.height}`,
+      );
+    }
     const geometry = frameGeometry(step);
     const frameName = `step-${String(index + 1).padStart(2, "0")}.png`;
     const framePath = path.join(frameDir, frameName);

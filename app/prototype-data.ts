@@ -1,4 +1,4 @@
-export type ModuleKey = "video" | "sales" | "recall";
+export type ModuleKey = "video" | "sales" | "recall" | "brain";
 export type ScreenCadence = "setup" | "daily";
 
 export type Screen = {
@@ -24,6 +24,7 @@ export const moduleMeta: Record<
   video: { index: "01", label: "短视频获客", caption: "做今天的视频" },
   sales: { index: "02", label: "企微自动接待", caption: "看今天的接待" },
   recall: { index: "03", label: "沉默客户跟进", caption: "处理今天的跟进" },
+  brain: { index: "04", label: "企业大脑", caption: "让机器人说得准" },
 };
 
 export const mainScreens: Screen[] = [
@@ -427,6 +428,126 @@ export const mainScreens: Screen[] = [
       "预览唯一券码和使用说明，再保存",
     ],
     done: ["服务区域与门店能力一致", "有效期和每户使用次数清楚", "发送前会再次检查可预约名额"],
+  },
+
+  {
+    id: "brain-today",
+    module: "brain",
+    index: "01",
+    title: "先处理今天最影响回答的问题",
+    phase: "每日运营",
+    cadence: "daily",
+    summary: "系统把客户经常问但答不准、资料读不出和可能引用错资料的回答排好顺序。你只需从第一条开始处理。",
+    output: "今天的资料改进清单",
+    duration: "5 分钟",
+    instructions: [
+      "从排在第一条的问题开始，不用逐份查看所有资料",
+      "打开对应页面，只补系统明确缺少的内容",
+      "完成后回到这里，再处理下一条",
+    ],
+    done: ["排在前面的项目已经处理", "完成的项目显示“已完成”", "下一项已经自动排到最前"],
+  },
+  {
+    id: "brain-gaps",
+    module: "brain",
+    index: "02",
+    title: "补齐客户常问但答不好的问题",
+    phase: "每日运营",
+    cadence: "daily",
+    summary: "先补有可靠来源的门店事实，再让系统生成回答草稿；店长审核通过后，机器人才能在新对话中使用。",
+    output: "审核过的客户常问答案",
+    duration: "8 分钟",
+    instructions: [
+      "先处理近 7 天被问最多的问题",
+      "按产品说明、供应商记录或门店规则补齐事实和来源",
+      "检查回答草稿，无误后再开始使用",
+    ],
+    done: ["缺少的事实都有可靠来源", "回答草稿已经人工检查", "页面显示“已可用于新回复”"],
+  },
+  {
+    id: "brain-trace",
+    module: "brain",
+    index: "03",
+    title: "检查机器人为什么这样回答",
+    phase: "每日运营",
+    cadence: "daily",
+    summary: "对照客户问题、机器人最终回复和使用的门店资料，判断回答是否准确、有没有答非所问或乱承诺。",
+    output: "一条回答的人工评价",
+    duration: "5 分钟",
+    instructions: [
+      "先读客户问题和机器人最终回复",
+      "核对所用门店资料是否正确、仍然有效",
+      "选择“回答可以使用”或记录具体问题",
+    ],
+    done: ["本条回答已经评价", "有问题时写明了原因", "页面显示问题已记录"],
+  },
+  {
+    id: "brain-import",
+    module: "brain",
+    index: "04",
+    title: "上传资料并确认系统读对了",
+    phase: "资料设置",
+    cadence: "setup",
+    summary: "前三个功能已上传的资料会自动同步。新增文件只需核对系统改了哪句话、内容分到哪一类，再确认使用。",
+    output: "机器人可使用的门店资料",
+    duration: "8 分钟",
+    instructions: [
+      "先处理标为“待确认”或“读不到正文”的资料",
+      "核对系统修改的风险用语和内容分类",
+      "确认无误后点“确认并使用”；其余步骤由系统自动完成",
+    ],
+    done: ["所选资料的两处风险说法已核对", "三类整理结果已确认", "所选资料显示“可以使用”"],
+  },
+  {
+    id: "brain-facts",
+    module: "brain",
+    index: "05",
+    title: "确认门店事实",
+    phase: "资料设置",
+    cadence: "setup",
+    summary: "维护门店长期介绍，以及能够找到资料依据的产品、价格和服务事实；销售话术不在这里重复维护。",
+    output: "跨功能共用的门店事实",
+    duration: "10 分钟",
+    instructions: [
+      "先核对客户会听到的门店介绍和不能承诺的内容",
+      "价格、包含项和适用条件必须来自同一份有效资料",
+      "修改后查看完整客户回答预览，再保存",
+    ],
+    done: ["门店介绍与真实业务一致", "价格写明适用条件和不包含项", "完整客户回答和资料来源都准确"],
+  },
+  {
+    id: "brain-guidance",
+    module: "brain",
+    index: "06",
+    title: "确认回答和行为边界",
+    phase: "资料设置",
+    cadence: "setup",
+    summary: "复用 02-02 已标为可借鉴的销售回复，并确认机器人遇到价格、活动等问题时应该做什么、不能做什么。",
+    output: "可借鉴回答和经过试答的规则",
+    duration: "10 分钟",
+    instructions: [
+      "先检查销售回答；合适就保存为参考回答，不合适就标记不采用",
+      "核对系统按当前资料整理的回答边界",
+      "查看客户实际会收到的试答，正确后再保存使用",
+    ],
+    done: ["回答已保存为参考或标记不采用", "试答没有引用过期价格或猜测名额", "页面显示规则正在使用"],
+  },
+  {
+    id: "brain-assets",
+    module: "brain",
+    index: "07",
+    title: "审核可发给客户的图片",
+    phase: "资料设置",
+    cadence: "setup",
+    summary: "先确认图片为门店有权使用的真实图片，再设置适合发给谁、什么时候可以发，并预览客户会收到的内容。",
+    output: "经过审核的客户图片",
+    duration: "6 分钟",
+    instructions: [
+      "正式使用前，先把原型示例图换成门店有权发送的真实图片",
+      "确认适用客户、发送时机和禁止场景",
+      "预览客户实际收到的内容，无误后开始使用",
+    ],
+    done: ["图片为门店自有且内容清晰", "发送条件和禁止场景清楚", "客户预览无误并显示“正在使用”"],
   },
 ];
 

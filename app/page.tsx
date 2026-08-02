@@ -11,7 +11,7 @@ import {
 import { resetWorkflowDemo, ScreenContent, WorkflowEventBridge } from "./prototype-screens";
 import AccountAccess, { type AccessAccount } from "./account-access";
 
-const moduleOrder: ModuleKey[] = ["video", "sales", "recall"];
+const moduleOrder: ModuleKey[] = ["video", "sales", "recall", "brain"];
 const phaseLabels: Record<string, string> = {
   引导流程: "首次设置",
   每日任务: "今天要做",
@@ -22,6 +22,20 @@ const phaseLabels: Record<string, string> = {
 };
 
 type DetailContext = Record<string, string>;
+
+const ACCESS_SESSION_KEY = "akke-demo-access-account";
+
+function readAccessSession(): AccessAccount | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = window.sessionStorage.getItem(ACCESS_SESSION_KEY);
+    if (!saved) return null;
+    const account = JSON.parse(saved) as AccessAccount;
+    return account.storeName && account.contact && account.account ? account : null;
+  } catch {
+    return null;
+  }
+}
 
 type PageDemo = {
   src: string;
@@ -85,15 +99,41 @@ const pageDemos: Partial<Record<string, PageDemo>> = {
     title: "设置量房券规则",
     duration: "20 秒",
   },
+  "brain-import": {
+    src: "./demos/brain-import.mp4",
+    poster: "./video-previews/demo-brain-import.jpg",
+    title: "核对并确认一份企业资料",
+    duration: "20 秒",
+  },
+  "brain-gaps": {
+    src: "./demos/brain-gaps.mp4",
+    poster: "./video-previews/demo-brain-gaps.jpg",
+    title: "补齐事实并生成可靠回答",
+    duration: "20 秒",
+  },
+  "brain-trace": {
+    src: "./demos/brain-trace.mp4",
+    poster: "./video-previews/demo-brain-trace.jpg",
+    title: "核对一条机器人回答",
+    duration: "20 秒",
+  },
 };
 
 export default function StoreMarketingApp() {
   const [account, setAccount] = useState<AccessAccount | null>(null);
 
+  useEffect(() => {
+    const savedAccount = readAccessSession();
+    if (!savedAccount) return;
+    const restoreTimer = window.setTimeout(() => setAccount(savedAccount), 0);
+    return () => window.clearTimeout(restoreTimer);
+  }, []);
+
   if (!account) {
     return (
       <AccountAccess
         onAccessGranted={(nextAccount) => {
+          window.sessionStorage.setItem(ACCESS_SESSION_KEY, JSON.stringify(nextAccount));
           setAccount(nextAccount);
           window.history.replaceState(null, "", "#video-top");
         }}
@@ -106,6 +146,7 @@ export default function StoreMarketingApp() {
       account={account}
       onSignOut={() => {
         resetWorkflowDemo();
+        window.sessionStorage.removeItem(ACCESS_SESSION_KEY);
         setAccount(null);
         window.history.replaceState(null, "", "#login");
       }}

@@ -8,6 +8,7 @@ import {
   videos,
 } from "./prototype-data";
 import { PrototypeDetailContent } from "./prototype-details";
+import { BrainScreenContent, resetBrainWorkflowDemo } from "./prototype-brain";
 import {
   slicePosterByFileName,
   spokespersonPosterByMaterial,
@@ -139,6 +140,7 @@ function publishWorkflowChange() {
 }
 
 export function resetWorkflowDemo() {
+  resetBrainWorkflowDemo();
   workflowMemory.labelWatched.clear();
   workflowMemory.labelDecisions = {};
   workflowMemory.labelReasons = {};
@@ -2117,6 +2119,7 @@ function CouponScreen({ goTo, notify }: Pick<ScreenProps, "goTo" | "notify">) {
 
 export function ScreenContent({ screen, context, goTo, notify }: ScreenProps) {
   if (screen.detail) return <PrototypeDetailContent screen={screen} context={context} goTo={goTo} notify={notify} />;
+  if (screen.module === "brain") return <BrainScreenContent id={screen.id} goTo={goTo} notify={notify} />;
   switch (screen.id) {
     case "video-business": return <BusinessScreen notify={notify} />;
     case "video-label": return <LabelScreen goTo={goTo} notify={notify} />;
