@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
+import { registerHooks } from "node:module";
 import test from "node:test";
+
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier === "cloudflare:workers") {
+      return {
+        url: "data:text/javascript,export const env = globalThis.__VINEXT_TEST_ENV__ ?? {};",
+        shortCircuit: true,
+      };
+    }
+    return nextResolve(specifier, context);
+  },
+});
 
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -364,9 +377,9 @@ test("builds the enterprise brain from real production knowledge", async () => {
 
   assert.match(pageSource, /\["video", "sales", "recall", "brain"\]/);
   assert.match(dataSource, /brain: \{ index: "04", label: "企业大脑", caption: "维护企业知识" \}/);
-  assert.equal([...dataSource.matchAll(/module: "brain"/g)].length, 10);
+  assert.equal([...dataSource.matchAll(/module: "brain"/g)].length, 11);
   assert.equal([...dataSource.matchAll(/id: "brain-(?:overview|decisions|conflict|release)"[\s\S]*?cadence: "daily"/g)].length, 4);
-  assert.equal([...dataSource.matchAll(/id: "brain-(?:inbox|processing|core|industry|unique|expansion)"[\s\S]*?cadence: "setup"/g)].length, 6);
+  assert.equal([...dataSource.matchAll(/id: "brain-(?:inbox|processing|core|industry|unique|expansion|provenance-lab)"[\s\S]*?cadence: "setup"/g)].length, 7);
   assert.doesNotMatch(dataSource, /module: "brain"[\s\S]{0,120}detail: true/);
   assert.match(screenSource, /<BrainScreenContent id=\{screen\.id\} goTo=\{goTo\} notify=\{notify\} \/>/);
 
@@ -412,6 +425,52 @@ test("builds the enterprise brain from real production knowledge", async () => {
   for (const jargon of ["向量化", "固定注入", "调用点", "Top3", "置信度", "阈值", "DO/DON’T"]) {
     assert.doesNotMatch(brainSource, new RegExp(jargon));
   }
+});
+
+test("builds an isolated provenance test database from real originals", async () => {
+  const [dataSource, brainSource, schemaSource, routeSource, parserSource, fixtureText, uiText, hostingText, migration] = await Promise.all([
+    readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/prototype-brain.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/provenance-test/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/build-provenance-fixture.py", import.meta.url), "utf8"),
+    readFile(new URL("../data/provenance-test-fixture.json", import.meta.url), "utf8"),
+    readFile(new URL("../data/provenance-test-ui.json", import.meta.url), "utf8"),
+    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0000_smooth_grey_gargoyle.sql", import.meta.url), "utf8"),
+  ]);
+  const fixture = JSON.parse(fixtureText);
+  const ui = JSON.parse(uiText);
+  const hosting = JSON.parse(hostingText);
+
+  assert.match(dataSource, /id: "brain-provenance-lab"/);
+  assert.match(brainSource, /原始资料证据实验库/);
+  assert.match(brainSource, /查看真实原件测试库/);
+  assert.match(brainSource, /不会修改 Supabase 生产表/);
+  assert.match(routeSource, /seedIfEmpty/);
+  assert.match(routeSource, /isolated-d1-test-db/);
+  assert.match(parserSource, /import pdfplumber/);
+  assert.match(parserSource, /from docx import Document/);
+  assert.match(parserSource, /from openpyxl import load_workbook/);
+  assert.equal(hosting.d1, "DB");
+
+  for (const table of ["source_documents", "source_blocks", "knowledge_facts", "fact_evidence_links"]) {
+    assert.match(schemaSource, new RegExp(table));
+    assert.match(migration, new RegExp(table));
+  }
+
+  assert.equal(fixture.documents.length, 3);
+  assert.equal(fixture.blocks.length, 433);
+  assert.equal(fixture.facts.length, 145);
+  assert.equal(fixture.evidence_links.length, 145);
+  assert.equal(ui.summary.complete_evidence, 145);
+  assert.match(JSON.stringify(fixture.documents), /装修工程避坑手册/);
+  assert.match(JSON.stringify(fixture.documents), /装饰装修验收标准\.docx/);
+  assert.match(JSON.stringify(fixture.documents), /精装修验收标准\.xlsx/);
+  assert.ok(fixture.blocks.some((item) => item.locator_label === "第 10 页"));
+  assert.ok(fixture.blocks.some((item) => item.locator_type === "paragraph" && item.locator_label.includes("第 21 段")));
+  assert.ok(fixture.blocks.some((item) => item.locator_label === "Sheet1!A5:K5"));
+  assert.ok(fixture.documents.every((item) => item.sha256.length === 64));
 });
 
 test("keeps account and payment pages presentational only", async () => {

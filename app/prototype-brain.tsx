@@ -17,6 +17,12 @@ import {
   resolveModuleEvidence,
   type EvidenceReference,
 } from "./enterprise-provenance";
+import {
+  fetchProvenanceLab,
+  provenanceLabFallback,
+  type ProvenanceLabRecord,
+  type ProvenanceLabResponse,
+} from "./provenance-test-data";
 
 type BrainScreenProps = {
   goTo: (id: string, context?: Record<string, string>) => void;
@@ -93,8 +99,69 @@ function usePublicKnowledge() {
   return { entries, state };
 }
 
+function useProvenanceLab() {
+  const [data, setData] = useState<ProvenanceLabResponse>(provenanceLabFallback);
+  const [state, setState] = useState<"loading" | "live" | "fallback">("loading");
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchProvenanceLab(controller.signal)
+      .then((response) => { setData(response); setState("live"); })
+      .catch(() => setState("fallback"));
+    return () => controller.abort();
+  }, []);
+  return { data, state };
+}
+
 export function resetBrainWorkflowDemo() {
   // 本原型只读展示生产数据；刷新页面会清除临时筛选和选择状态。
+}
+
+function sourceHref(record: ProvenanceLabRecord) {
+  return record.fileType === "pdf" && record.pageNumber
+    ? `${record.fileUrl}#page=${record.pageNumber}`
+    : record.fileUrl;
+}
+
+function BrainProvenanceLabScreen({ goTo }: Pick<BrainScreenProps, "goTo">) {
+  const { data, state } = useProvenanceLab();
+  const [fileType, setFileType] = useState<"all" | "pdf" | "docx" | "xlsx">("all");
+  const [documentId, setDocumentId] = useState("all");
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => data.records.filter((record) => {
+    if (fileType !== "all" && record.fileType !== fileType) return false;
+    if (documentId !== "all" && record.documentId !== documentId) return false;
+    const keyword = query.trim().toLowerCase();
+    if (!keyword) return true;
+    return `${record.title} ${record.factValue} ${record.originalFilename} ${record.locatorLabel}`.toLowerCase().includes(keyword);
+  }), [data.records, documentId, fileType, query]);
+  const visibleRecords = filtered.slice(0, 30);
+  const [selectedId, setSelectedId] = useState(data.records[0]?.id || "");
+  const selected = filtered.find((record) => record.id === selectedId) || filtered[0];
+
+  return <div className="brain-page provenance-lab-page">
+    <section className="brain-task-head"><div><h2>原始资料证据实验库</h2><p>从 3 份真实原件重新解析页码、章节段落和单元格，写入与生产库完全隔离的临时数据库。</p></div><div className="button-row"><Pill tone={state === "live" ? "positive" : state === "loading" ? "info" : "warning"}>{state === "live" ? "临时数据库实时读取" : state === "loading" ? "正在连接临时数据库" : "本地验证快照"}</Pill><Button onClick={() => goTo("brain-overview")}>返回知识全景</Button></div></section>
+    <section className="brain-source-tip provenance-lab-safety"><b>测试边界</b><span>这里只读取 R2 公开原件，并写入新建的测试数据表；不会修改 Supabase 生产表、品牌档案或机器人正式知识。</span><small>企业核心旧资料仍缺原件，本页不为它补造来源。</small></section>
+    <div className="brain-metric-grid compact provenance-lab-metrics"><BrainMetric value={`${data.summary.documents} 份`} label="真实原始文件"/><BrainMetric value={`${data.summary.blocks} 段`} label="可定位原文块"/><BrainMetric value={`${data.summary.facts} 条`} label="测试知识事实"/><BrainMetric value={`${data.summary.completeEvidence} 条`} label="完整证据关系"/></div>
+    <Card title="本次导入的真实原件" caption="点击文件可只看由该原件生成的知识；文件哈希用于识别版本变化。">
+      <div className="provenance-document-grid">
+        <button className={documentId === "all" ? "active" : ""} onClick={() => setDocumentId("all")} type="button"><i>ALL</i><span><b>全部测试资料</b><small>跨 PDF、Word、Excel 联合查看</small></span><Pill tone="positive">{data.summary.facts} 条事实</Pill></button>
+        {data.documents.map((document) => <button className={documentId === document.id ? "active" : ""} key={document.id} onClick={() => { setDocumentId(document.id); setFileType("all"); }} type="button"><i>{document.fileType.toUpperCase()}</i><span><b>{document.originalFilename}</b><small>{document.pageCount ? `${document.pageCount} 页` : document.sheetCount ? `${document.sheetCount} 个工作表` : `${document.blockCount} 个段落/表格行`} · 哈希 {document.sha256.slice(0, 8)}</small></span><Pill tone="positive">原件已核验</Pill></button>)}
+      </div>
+    </Card>
+    <div className="provenance-workbench">
+      <Card className="provenance-record-panel" title="由原件生成的真实知识" caption={`匹配 ${filtered.length} 条，列表显示前 ${visibleRecords.length} 条；可继续搜索缩小范围。`}>
+        <div className="provenance-toolbar"><div className="provenance-format-tabs">{(["all", "pdf", "docx", "xlsx"] as const).map(type => <button className={fileType === type ? "active" : ""} key={type} onClick={() => setFileType(type)} type="button">{type === "all" ? "全部格式" : type.toUpperCase()}</button>)}</div><input aria-label="搜索测试知识" onChange={(event) => setQuery(event.target.value)} placeholder="搜索工序、材料、验收项…" value={query}/></div>
+        <div className="provenance-record-list">{visibleRecords.map((record) => <button className={record.id === selected?.id ? "active" : ""} key={record.id} onClick={() => setSelectedId(record.id)} type="button"><span className={`file-badge ${record.fileType}`}>{record.fileType.toUpperCase()}</span><span><b>{record.title}</b><small>{record.factValue}</small><em>{record.originalFilename} · {record.locatorLabel}</em></span><i>›</i></button>)}{filtered.length === 0 && <div className="provenance-empty">没有匹配内容，换一个关键词或文件格式。</div>}</div>
+      </Card>
+      <Card className="provenance-detail-panel" title="知识事实与原始证据" action={selected && <Pill tone="positive">完整可追溯</Pill>}>
+        {selected ? <div className="provenance-record-detail">
+          <div className="provenance-fact-head"><span>{selected.moduleCode} · {selected.category}</span><h3>{selected.title}</h3><p>{selected.factValue}</p></div>
+          <div className="provenance-evidence-card"><div className="provenance-evidence-file"><i>{selected.fileType.toUpperCase()}</i><span><small>用户原始文件</small><b>{selected.originalFilename}</b></span></div><dl><div><dt>原文位置</dt><dd>{selected.locatorLabel}</dd></div><div><dt>文件版本</dt><dd>{selected.sourceUpdatedAt.slice(0, 10)} · SHA-256 {selected.sha256.slice(0, 12)}…</dd></div><div><dt>抽取状态</dt><dd>原件已读取 · 定位已验证 · 证据关系已写入</dd></div></dl><blockquote>{selected.excerpt}</blockquote><a className="ui-button ui-button-primary" href={sourceHref(selected)} rel="noreferrer" target="_blank">打开原始文件{selected.pageNumber ? `第 ${selected.pageNumber} 页` : ""}</a></div>
+          <div className="provenance-chain"><span><b>1</b>原始文件</span><i>→</i><span><b>2</b>{selected.locatorType === "page" ? "页码" : selected.locatorType === "cell_range" ? "单元格" : "章节段落"}</span><i>→</i><span><b>3</b>原文块</span><i>→</i><span><b>4</b>知识事实</span></div>
+        </div> : <div className="provenance-empty">请选择一条知识事实。</div>}
+      </Card>
+    </div>
+  </div>;
 }
 
 function BrainInboxScreen({ goTo, notify }: Pick<BrainScreenProps, "goTo" | "notify">) {
@@ -135,7 +202,7 @@ function BrainOverviewScreen({ goTo }: Pick<BrainScreenProps, "goTo">) {
   const groupKeys = Object.keys(brainGroups) as BrainGroupKey[];
   const moduleCount = groupKeys.reduce((sum, key) => sum + brainGroups[key].modules.length, 0);
   return <div className="brain-page brain-overview-page">
-    <section className="brain-task-head"><div><h2>AKKE 企业知识全景｜有大有小</h2><p>基于生产库真实数据构建；正式事实还必须绑定用户原始文件和段落，数据库记录本身不算来源。</p></div><div className="button-row"><SourceStamp live={state === "live"} count={entries.length || undefined}/><Button onClick={() => goTo("brain-inbox")}>查看数据源</Button><Button kind="primary" onClick={() => goTo("brain-decisions")}>处理 3 项冲突</Button></div></section>
+    <section className="brain-task-head"><div><h2>AKKE 企业知识全景｜有大有小</h2><p>基于生产库真实数据构建；正式事实还必须绑定用户原始文件和段落，数据库记录本身不算来源。</p></div><div className="button-row"><SourceStamp live={state === "live"} count={entries.length || undefined}/><Button onClick={() => goTo("brain-inbox")}>查看数据源</Button><Button onClick={() => goTo("brain-provenance-lab")}>查看真实原件测试库</Button><Button kind="primary" onClick={() => goTo("brain-decisions")}>处理 3 项冲突</Button></div></section>
     <div className="brain-metric-grid"><BrainMetric value={`${productionStats.knowledgeDocuments} 份`} label="企业文档"/><BrainMetric value={`${productionStats.knowledgeEntries} 条`} label="行业知识"/><BrainMetric value={`${productionStats.knowledgeChunks.toLocaleString()} 段`} label="检索切片"/><BrainMetric value={`${moduleCount} 个`} label="展示模块"/><BrainMetric value="3 项" label="待确认承诺" soft/></div>
     <div className="brain-filter-row"><div><Pill tone="positive">结构化事实已填充</Pill><Pill>行业库 362 条</Pill><Pill tone="warning">原始出处待回填</Pill><Pill tone="warning">冲突 3</Pill><Pill tone="info">对话资料已隔离</Pill></div><span>AKKE 生产快照｜{PRODUCTION_SNAPSHOT_AT}</span></div>
     <div className="brain-category-grid">{groupKeys.map(key => { const group = brainGroups[key]; return <section className="brain-category" key={key}><div className="brain-category-head"><h3>{group.title}</h3><Pill tone={key === "unique" ? "positive" : "neutral"}>{group.modules.length} 个模块</Pill></div><p>{group.caption}</p><div className="brain-module-lines">{group.modules.map(module => <div key={module.code}><span><b>{module.code}</b>｜{module.title}</span><em>{module.meta}</em></div>)}</div><Button kind="primary" onClick={() => goTo(group.destination)}>查看{key === "core" ? "企业核心" : key === "industry" ? "行业通用" : "企业独有"}</Button></section>; })}</div>
@@ -208,6 +275,7 @@ export function BrainScreenContent({ id, goTo, notify }: BrainScreenProps & { id
     case "brain-conflict": return <BrainConflictScreen goTo={goTo} notify={notify} />;
     case "brain-expansion": return <BrainExpansionScreen goTo={goTo} notify={notify} />;
     case "brain-release": return <BrainReleaseScreen goTo={goTo} notify={notify} />;
+    case "brain-provenance-lab": return <BrainProvenanceLabScreen goTo={goTo} />;
     default: return <div>企业大脑页面准备中</div>;
   }
 }

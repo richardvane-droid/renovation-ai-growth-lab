@@ -560,6 +560,19 @@ export const mainScreens: Screen[] = [
     instructions: ["对比线上版本和草稿版本", "检查新增、更新和归档内容", "确认六项发布检查通过", "发布后保留完整回滚记录"],
     done: ["质量检查全部通过", "变更范围清楚", "新版本可以安全回滚"],
   },
+  {
+    id: "brain-provenance-lab",
+    module: "brain",
+    index: "11",
+    title: "原始资料测试库",
+    phase: "资料设置",
+    cadence: "setup",
+    summary: "从真实 PDF、Word 和 Excel 原件重新解析页码、章节段落与单元格，写入隔离测试库并展示完整证据链。",
+    output: "带真实原件定位的临时知识数据库",
+    duration: "10 分钟",
+    instructions: ["查看三份真实原件和解析数量", "按文件格式或关键词筛选知识", "点击知识查看原文件位置与原文摘录", "打开原件核对页面、段落或单元格"],
+    done: ["测试库与生产表完全隔离", "每条测试事实都有原文件和定位", "可以据真实数据评审前端结构"],
+  },
 ];
 
 export const detailScreens: Screen[] = [
