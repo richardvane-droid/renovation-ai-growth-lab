@@ -1,5 +1,6 @@
 import { asc, eq, sql } from "drizzle-orm";
 import fixtureJson from "../../../data/provenance-test-fixture.json";
+import sourceCatalog from "../../../data/source-catalog.json";
 import { getDb } from "../../../db";
 import {
   factEvidenceLinks,
@@ -30,6 +31,25 @@ async function seedIfEmpty() {
     factCount: item.fact_count,
     importStatus: item.import_status,
   }))).onConflictDoNothing();
+
+  for (let index = 0; index < sourceCatalog.documents.length; index += 6) {
+    const chunk = sourceCatalog.documents.slice(index, index + 6);
+    await db.insert(sourceDocuments).values(chunk.map((item) => ({
+      id: item.id,
+      title: item.title,
+      originalFilename: item.original_filename,
+      fileUrl: item.file_url,
+      fileType: item.file_type,
+      category: item.category,
+      sha256: "",
+      sourceUpdatedAt: item.source_updated_at,
+      pageCount: null,
+      sheetCount: null,
+      blockCount: 0,
+      factCount: 0,
+      importStatus: item.import_status,
+    }))).onConflictDoNothing();
+  }
 
   for (let index = 0; index < fixtureJson.blocks.length; index += 8) {
     const chunk = fixtureJson.blocks.slice(index, index + 8);
@@ -131,8 +151,16 @@ export async function GET(request: Request) {
       const [row] = await db.select({ total: sql<number>`count(*)` }).from(table);
       return Number(row.total);
     };
-    const [documentCount, blockCount, factCount, evidenceCount] = await Promise.all([
+    const countStatus = async (status: string) => {
+      const [row] = await db.select({ total: sql<number>`count(*)` })
+        .from(sourceDocuments)
+        .where(eq(sourceDocuments.importStatus, status));
+      return Number(row.total);
+    };
+    const [documentCount, parsedDocumentCount, pendingDocumentCount, blockCount, factCount, evidenceCount] = await Promise.all([
       countTable(sourceDocuments),
+      countStatus("verified_original"),
+      countStatus("discovered_original"),
       countTable(sourceBlocks),
       countTable(knowledgeFacts),
       countTable(factEvidenceLinks),
@@ -144,6 +172,8 @@ export async function GET(request: Request) {
       source: "isolated-d1-test-db",
       summary: {
         documents: documentCount,
+        parsedDocuments: parsedDocumentCount,
+        pendingDocuments: pendingDocumentCount,
         blocks: blockCount,
         facts: factCount,
         completeEvidence: evidenceCount,

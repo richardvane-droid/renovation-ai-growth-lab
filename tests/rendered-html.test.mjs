@@ -428,30 +428,39 @@ test("builds the enterprise brain from real production knowledge", async () => {
 });
 
 test("builds an isolated provenance test database from real originals", async () => {
-  const [dataSource, brainSource, schemaSource, routeSource, parserSource, fixtureText, uiText, hostingText, migration] = await Promise.all([
+  const [dataSource, brainSource, schemaSource, routeSource, parserSource, catalogParserSource, fixtureText, uiText, catalogText, hostingText, migration] = await Promise.all([
     readFile(new URL("../app/prototype-data.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/prototype-brain.tsx", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/provenance-test/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../scripts/build-provenance-fixture.py", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/build-source-catalog.py", import.meta.url), "utf8"),
     readFile(new URL("../data/provenance-test-fixture.json", import.meta.url), "utf8"),
     readFile(new URL("../data/provenance-test-ui.json", import.meta.url), "utf8"),
+    readFile(new URL("../data/source-catalog.json", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0000_smooth_grey_gargoyle.sql", import.meta.url), "utf8"),
   ]);
   const fixture = JSON.parse(fixtureText);
   const ui = JSON.parse(uiText);
+  const catalog = JSON.parse(catalogText);
   const hosting = JSON.parse(hostingText);
 
   assert.match(dataSource, /id: "brain-provenance-lab"/);
-  assert.match(brainSource, /原始资料证据实验库/);
+  assert.match(brainSource, /全部原始资料与证据实验库/);
   assert.match(brainSource, /查看真实原件测试库/);
   assert.match(brainSource, /不会修改 Supabase 生产表/);
+  assert.match(brainSource, /全部原文件目录/);
+  assert.match(brainSource, /已发现原件、待解析/);
+  assert.match(brainSource, /67 份企业资料/);
   assert.match(routeSource, /seedIfEmpty/);
   assert.match(routeSource, /isolated-d1-test-db/);
+  assert.match(routeSource, /sourceCatalog\.documents/);
   assert.match(parserSource, /import pdfplumber/);
   assert.match(parserSource, /from docx import Document/);
   assert.match(parserSource, /from openpyxl import load_workbook/);
+  assert.match(catalogParserSource, /kb_entries metadata/);
+  assert.match(catalogParserSource, /discovered_original/);
   assert.equal(hosting.d1, "DB");
 
   for (const table of ["source_documents", "source_blocks", "knowledge_facts", "fact_evidence_links"]) {
@@ -464,6 +473,12 @@ test("builds an isolated provenance test database from real originals", async ()
   assert.equal(fixture.facts.length, 145);
   assert.equal(fixture.evidence_links.length, 145);
   assert.equal(ui.summary.complete_evidence, 145);
+  assert.equal(catalog.documents.length, 362);
+  assert.equal(catalog.summary.parsed_documents, 3);
+  assert.equal(catalog.summary.pending_documents, 359);
+  assert.deepEqual(catalog.summary.format_counts, { doc: 30, docx: 35, pdf: 203, pptx: 2, xls: 67, xlsx: 25 });
+  assert.ok(catalog.documents.every((item) => item.file_url.startsWith("https://pub-667af1183df84306ad1f8d1cec9bd192.r2.dev/")));
+  assert.ok(catalog.documents.every((item) => ["verified_original", "discovered_original"].includes(item.import_status)));
   assert.match(JSON.stringify(fixture.documents), /装修工程避坑手册/);
   assert.match(JSON.stringify(fixture.documents), /装饰装修验收标准\.docx/);
   assert.match(JSON.stringify(fixture.documents), /精装修验收标准\.xlsx/);

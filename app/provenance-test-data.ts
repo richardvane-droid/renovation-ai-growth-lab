@@ -1,11 +1,12 @@
 import uiFixture from "../data/provenance-test-ui.json";
+import sourceCatalog from "../data/source-catalog.json";
 
 export type ProvenanceLabDocument = {
   id: string;
   title: string;
   originalFilename: string;
   fileUrl: string;
-  fileType: "pdf" | "docx" | "xlsx";
+  fileType: string;
   category: string;
   sha256: string;
   sourceUpdatedAt: string;
@@ -29,7 +30,7 @@ export type ProvenanceLabRecord = {
   documentTitle: string;
   originalFilename: string;
   fileUrl: string;
-  fileType: "pdf" | "docx" | "xlsx";
+  fileType: string;
   sha256: string;
   sourceUpdatedAt: string;
   locatorType: string;
@@ -48,6 +49,8 @@ export type ProvenanceLabResponse = {
   source: "isolated-d1-test-db" | "bundled-verified-fixture";
   summary: {
     documents: number;
+    parsedDocuments: number;
+    pendingDocuments: number;
     blocks: number;
     facts: number;
     completeEvidence: number;
@@ -74,16 +77,38 @@ function mapDocument(item: (typeof uiFixture.documents)[number]): ProvenanceLabD
   };
 }
 
+const verifiedDocuments = new Map(uiFixture.documents.map((item) => [item.id, mapDocument(item)]));
+
+function mapCatalogDocument(item: (typeof sourceCatalog.documents)[number]): ProvenanceLabDocument {
+  return verifiedDocuments.get(item.id) ?? {
+    id: item.id,
+    title: item.title,
+    originalFilename: item.original_filename,
+    fileUrl: item.file_url,
+    fileType: item.file_type,
+    category: item.category,
+    sha256: "",
+    sourceUpdatedAt: item.source_updated_at,
+    pageCount: null,
+    sheetCount: null,
+    blockCount: 0,
+    factCount: 0,
+    importStatus: item.import_status,
+  };
+}
+
 export const provenanceLabFallback: ProvenanceLabResponse = {
   scope: uiFixture.scope,
   source: "bundled-verified-fixture",
   summary: {
-    documents: uiFixture.summary.documents,
+    documents: sourceCatalog.summary.documents,
+    parsedDocuments: sourceCatalog.summary.parsed_documents,
+    pendingDocuments: sourceCatalog.summary.pending_documents,
     blocks: uiFixture.summary.blocks,
     facts: uiFixture.summary.facts,
     completeEvidence: uiFixture.summary.complete_evidence,
   },
-  documents: uiFixture.documents.map(mapDocument),
+  documents: sourceCatalog.documents.map(mapCatalogDocument),
   records: uiFixture.records.map((item) => ({
     id: item.id,
     moduleCode: item.module_code,

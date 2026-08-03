@@ -127,6 +127,11 @@ function BrainProvenanceLabScreen({ goTo }: Pick<BrainScreenProps, "goTo">) {
   const [fileType, setFileType] = useState<"all" | "pdf" | "docx" | "xlsx">("all");
   const [documentId, setDocumentId] = useState("all");
   const [query, setQuery] = useState("");
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalogFormat, setCatalogFormat] = useState<"all" | "pdf" | "word" | "excel" | "ppt">("all");
+  const [catalogStatus, setCatalogStatus] = useState<"all" | "verified" | "pending">("all");
+  const [catalogCategory, setCatalogCategory] = useState("all");
+  const [catalogPage, setCatalogPage] = useState(0);
   const filtered = useMemo(() => data.records.filter((record) => {
     if (fileType !== "all" && record.fileType !== fileType) return false;
     if (documentId !== "all" && record.documentId !== documentId) return false;
@@ -137,15 +142,48 @@ function BrainProvenanceLabScreen({ goTo }: Pick<BrainScreenProps, "goTo">) {
   const visibleRecords = filtered.slice(0, 30);
   const [selectedId, setSelectedId] = useState(data.records[0]?.id || "");
   const selected = filtered.find((record) => record.id === selectedId) || filtered[0];
+  const verifiedDocuments = useMemo(() => data.documents.filter(document => document.importStatus === "verified_original"), [data.documents]);
+  const categories = useMemo(() => Array.from(new Set(data.documents.map(document => document.category))).sort((a, b) => a.localeCompare(b, "zh-CN")), [data.documents]);
+  const catalogDocuments = useMemo(() => data.documents.filter(document => {
+    const formatOk = catalogFormat === "all"
+      || (catalogFormat === "word" ? ["doc", "docx"].includes(document.fileType) : false)
+      || (catalogFormat === "excel" ? ["xls", "xlsx"].includes(document.fileType) : false)
+      || (catalogFormat === "ppt" ? ["ppt", "pptx"].includes(document.fileType) : false)
+      || document.fileType === catalogFormat;
+    const statusOk = catalogStatus === "all"
+      || (catalogStatus === "verified" && document.importStatus === "verified_original")
+      || (catalogStatus === "pending" && document.importStatus === "discovered_original");
+    const categoryOk = catalogCategory === "all" || document.category === catalogCategory;
+    const keyword = catalogQuery.trim().toLowerCase();
+    const keywordOk = !keyword || `${document.title} ${document.originalFilename} ${document.category}`.toLowerCase().includes(keyword);
+    return formatOk && statusOk && categoryOk && keywordOk;
+  }), [catalogCategory, catalogFormat, catalogQuery, catalogStatus, data.documents]);
+  const catalogPageSize = 30;
+  const catalogPageCount = Math.max(1, Math.ceil(catalogDocuments.length / catalogPageSize));
+  const safeCatalogPage = Math.min(catalogPage, catalogPageCount - 1);
+  const visibleCatalogDocuments = catalogDocuments.slice(safeCatalogPage * catalogPageSize, (safeCatalogPage + 1) * catalogPageSize);
+  const changeCatalogFilter = (change: () => void) => { change(); setCatalogPage(0); };
 
   return <div className="brain-page provenance-lab-page">
-    <section className="brain-task-head"><div><h2>原始资料证据实验库</h2><p>从 3 份真实原件重新解析页码、章节段落和单元格，写入与生产库完全隔离的临时数据库。</p></div><div className="button-row"><Pill tone={state === "live" ? "positive" : state === "loading" ? "info" : "warning"}>{state === "live" ? "临时数据库实时读取" : state === "loading" ? "正在连接临时数据库" : "本地验证快照"}</Pill><Button onClick={() => goTo("brain-overview")}>返回知识全景</Button></div></section>
-    <section className="brain-source-tip provenance-lab-safety"><b>测试边界</b><span>这里只读取 R2 公开原件，并写入新建的测试数据表；不会修改 Supabase 生产表、品牌档案或机器人正式知识。</span><small>企业核心旧资料仍缺原件，本页不为它补造来源。</small></section>
-    <div className="brain-metric-grid compact provenance-lab-metrics"><BrainMetric value={`${data.summary.documents} 份`} label="真实原始文件"/><BrainMetric value={`${data.summary.blocks} 段`} label="可定位原文块"/><BrainMetric value={`${data.summary.facts} 条`} label="测试知识事实"/><BrainMetric value={`${data.summary.completeEvidence} 条`} label="完整证据关系"/></div>
-    <Card title="本次导入的真实原件" caption="点击文件可只看由该原件生成的知识；文件哈希用于识别版本变化。">
+    <section className="brain-task-head"><div><h2>全部原始资料与证据实验库</h2><p>已汇总 {data.summary.documents} 份真实原件；{data.summary.parsedDocuments} 份完成内容级定位，其余进入待解析队列。</p></div><div className="button-row"><Pill tone={state === "live" ? "positive" : state === "loading" ? "info" : "warning"}>{state === "live" ? "临时数据库实时读取" : state === "loading" ? "正在连接临时数据库" : "本地验证快照"}</Pill><Button onClick={() => goTo("brain-overview")}>返回知识全景</Button></div></section>
+    <section className="brain-source-tip provenance-lab-safety"><b>来源与权限结论</b><span>362 份行业资料已通过公开 R2 原件进入目录，无需新增权限；这里只写入隔离测试库，不会修改 Supabase 生产表。</span><small>另有 67 份企业资料被公开角色隐藏，需要 knowledge_documents 只读 RLS 与对象存储读取 / 签名 URL；品牌档案还需回填原文件关联字段。</small></section>
+    <div className="brain-metric-grid compact provenance-lab-metrics"><BrainMetric value={`${data.summary.documents} 份`} label="原文件已发现"/><BrainMetric value={`${data.summary.parsedDocuments} 份`} label="已完成解析定位"/><BrainMetric value={`${data.summary.blocks} 段`} label="可定位原文块"/><BrainMetric value={`${data.summary.completeEvidence} 条`} label="完整证据关系"/></div>
+    <Card title="全部原文件目录" caption={`共 ${data.summary.documents} 份；文件名、类型、分类和原件链接来自真实知识索引。未解析文件只标记“已发现”，不伪造页码或原文证据。`} action={<Pill tone="info">当前匹配 {catalogDocuments.length} 份</Pill>}>
+      <div className="source-catalog-toolbar">
+        <input aria-label="搜索全部原文件" onChange={(event) => changeCatalogFilter(() => setCatalogQuery(event.target.value))} placeholder="搜索文件名、标题或资料分类…" value={catalogQuery}/>
+        <select aria-label="筛选资料分类" onChange={(event) => changeCatalogFilter(() => setCatalogCategory(event.target.value))} value={catalogCategory}><option value="all">全部分类</option>{categories.map(category => <option key={category} value={category}>{category}</option>)}</select>
+      </div>
+      <div className="source-catalog-filter-row">
+        <div className="source-format-tabs">{(["all", "pdf", "word", "excel", "ppt"] as const).map(format => <button className={catalogFormat === format ? "active" : ""} key={format} onClick={() => changeCatalogFilter(() => setCatalogFormat(format))} type="button">{format === "all" ? "全部格式" : format === "word" ? "Word" : format === "excel" ? "Excel" : format.toUpperCase()}</button>)}</div>
+        <div className="source-format-tabs status-tabs">{(["all", "verified", "pending"] as const).map(status => <button className={catalogStatus === status ? "active" : ""} key={status} onClick={() => changeCatalogFilter(() => setCatalogStatus(status))} type="button">{status === "all" ? "全部状态" : status === "verified" ? `已解析 ${data.summary.parsedDocuments}` : `待解析 ${data.summary.pendingDocuments}`}</button>)}</div>
+      </div>
+      <div className="source-catalog-list">{visibleCatalogDocuments.map(document => <article key={document.id}><span className={`file-badge ${document.fileType}`}>{document.fileType.toUpperCase()}</span><div className="source-catalog-main"><b>{document.originalFilename}</b><small>{document.title !== document.originalFilename.replace(/\.[^.]+$/, "") ? document.title : document.category}</small><em>{document.category} · 更新于 {document.sourceUpdatedAt ? document.sourceUpdatedAt.slice(0, 10) : "时间待补"}</em></div><Pill tone={document.importStatus === "verified_original" ? "positive" : "warning"}>{document.importStatus === "verified_original" ? "已完成内容级定位" : "已发现原件、待解析"}</Pill><a href={document.fileUrl} rel="noreferrer" target="_blank">打开原件 ↗</a></article>)}{catalogDocuments.length === 0 && <div className="provenance-empty">没有匹配的原文件，请调整搜索或筛选条件。</div>}</div>
+      <div className="source-catalog-pagination"><span>第 {safeCatalogPage + 1} / {catalogPageCount} 页 · 每页最多 {catalogPageSize} 份</span><div><Button disabled={safeCatalogPage === 0} onClick={() => setCatalogPage(Math.max(0, safeCatalogPage - 1))}>上一页</Button><Button disabled={safeCatalogPage >= catalogPageCount - 1} onClick={() => setCatalogPage(Math.min(catalogPageCount - 1, safeCatalogPage + 1))}>下一页</Button></div></div>
+    </Card>
+    <Card title="已完成内容级定位的原件" caption="这 3 份已真实读取文件内容并生成页码、段落或单元格证据；点击文件可筛选下方知识事实。">
       <div className="provenance-document-grid">
-        <button className={documentId === "all" ? "active" : ""} onClick={() => setDocumentId("all")} type="button"><i>ALL</i><span><b>全部测试资料</b><small>跨 PDF、Word、Excel 联合查看</small></span><Pill tone="positive">{data.summary.facts} 条事实</Pill></button>
-        {data.documents.map((document) => <button className={documentId === document.id ? "active" : ""} key={document.id} onClick={() => { setDocumentId(document.id); setFileType("all"); }} type="button"><i>{document.fileType.toUpperCase()}</i><span><b>{document.originalFilename}</b><small>{document.pageCount ? `${document.pageCount} 页` : document.sheetCount ? `${document.sheetCount} 个工作表` : `${document.blockCount} 个段落/表格行`} · 哈希 {document.sha256.slice(0, 8)}</small></span><Pill tone="positive">原件已核验</Pill></button>)}
+        <button className={documentId === "all" ? "active" : ""} onClick={() => setDocumentId("all")} type="button"><i>ALL</i><span><b>全部已解析资料</b><small>跨 PDF、Word、Excel 联合查看</small></span><Pill tone="positive">{data.summary.facts} 条事实</Pill></button>
+        {verifiedDocuments.map((document) => <button className={documentId === document.id ? "active" : ""} key={document.id} onClick={() => { setDocumentId(document.id); setFileType("all"); }} type="button"><i>{document.fileType.toUpperCase()}</i><span><b>{document.originalFilename}</b><small>{document.pageCount ? `${document.pageCount} 页` : document.sheetCount ? `${document.sheetCount} 个工作表` : `${document.blockCount} 个段落/表格行`} · 哈希 {document.sha256.slice(0, 8)}</small></span><Pill tone="positive">原件已核验</Pill></button>)}
       </div>
     </Card>
     <div className="provenance-workbench">
