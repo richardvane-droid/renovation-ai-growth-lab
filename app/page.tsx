@@ -75,8 +75,8 @@ const modules: ModuleConfig[] = [
     key: "recall",
     index: "03",
     label: "断联召回",
-    title: "断联后累积 7 次智能召回",
-    description: "管理活动内容、分析历史召回效果，并根据装修阶段、联系阶段和信任分生成个性化触达。",
+    title: "断联后按客户阶段持续召回",
+    description: "同步真实召回记录与客户回复，并根据装修阶段、沉默时长和已知需求安排下一次触达。",
     metric: "提高断联回复率",
     stages: [
       {
@@ -634,12 +634,12 @@ function RecallActivities() {
   return (
     <div className="screen-grid activity-grid">
       <section className="panel activity-form">
-        <SectionHead title="新增活动信息" description="重点配置活动周期、目标客群与权益" />
+        <SectionHead title="新增活动信息" description="真实活动资料尚未接入，当前仅保留填写位置" />
         {[
-          ["活动名称", "国庆全屋定制焕新季"],
-          ["活动周期", "2026.09.20 — 2026.10.08"],
-          ["目标客群", "报价后未到店 · 信任分 40+"],
-          ["核心权益", "免费量房 + 3D 方案 + 到店礼"],
+          ["活动名称", "待同步活动名称"],
+          ["活动周期", "待同步开始与结束日期"],
+          ["目标客群", "待同步客户适用条件"],
+          ["核心权益", "待核验权益、价格与使用边界"],
         ].map(([label, value]) => (
           <label key={label}>
             {label}
@@ -656,27 +656,27 @@ function RecallActivities() {
         <SectionHead
           title="存量活动"
           description="可启停、编辑或删除"
-          action={<Badge tone="green">2 个进行中</Badge>}
+          action={<Badge tone="amber">资料待接入</Badge>}
         />
         {[
-          ["国庆焕新季", "09.20–10.08", "进行中", "128 人"],
-          ["免费量房周", "08.01–08.07", "已结束", "96 人"],
-          ["环保板材公开课", "07.18–07.31", "已结束", "74 人"],
-          ["老客户转介绍", "长期", "进行中", "53 人"],
+          ["样板房权益", "有效期待同步", "待核验", "名额待同步"],
+          ["同小区案例", "长期内容", "可用于召回", "已发送 8 次"],
+          ["产品配置说明", "长期内容", "可用于召回", "已发送 10 次"],
+          ["品质保障说明", "长期内容", "可用于召回", "已发送 9 次"],
         ].map(([name, time, status, people]) => (
           <div className="activity-row" key={name}>
-            <i className={status === "进行中" ? "on" : ""} />
+            <i className={status === "可用于召回" ? "on" : ""} />
             <div>
               <b>{name}</b>
               <span>
                 {time} · {people}
               </span>
             </div>
-            <Badge tone={status === "进行中" ? "green" : "gray"}>{status}</Badge>
+            <Badge tone={status === "可用于召回" ? "green" : "amber"}>{status}</Badge>
             <button>编辑 ···</button>
           </div>
         ))}
-        <div className="sync-note">活动信息将同步到知识海报与体验券插件</div>
+        <div className="sync-note">当前仅同步已验证的召回内容；活动库存、海报和预约名额尚未接入</div>
       </section>
     </div>
   );
@@ -877,10 +877,10 @@ function RecallPlugins() {
   return (
     <div className="screen-grid recall-plugin-grid">
       <section className="panel recall-plugin-list">
-        <SectionHead title="召回插件" description="与 7 次召回策略联动" />
+        <SectionHead title="召回插件" description="与客户生命周期阶段和真实话题库联动" />
         {[
-          ["A", "个性化知识海报", "按阶段生成知识内容"],
-          ["B", "免费上门体验券", "量房 + 方案权益券"],
+          ["A", "个性化知识内容", "真实话题已接入，海报图片待接入"],
+          ["B", "上门体验权益", "预约、名额和核销资料待接入"],
         ].map(([letter, title, description], index) => (
           <button
             className={selected === index ? "recall-plugin-card active" : "recall-plugin-card"}
@@ -892,45 +892,45 @@ function RecallPlugins() {
               <b>{title}</b>
               <span>{description}</span>
             </div>
-            <Badge tone="green">已启用</Badge>
+            <Badge tone={index === 0 ? "green" : "amber"}>{index === 0 ? "内容已接入" : "暂未启用"}</Badge>
           </button>
         ))}
         <div className="strategy-note">
           <b>当前策略</b>
-          <span>知识 4 次 · 权益 2 次 · 关怀 1 次</span>
+          <span>按阶段动态选择内容 · 客户回复或明确拒绝后立即停止</span>
           <Progress value={100} />
         </div>
       </section>
       <section className="panel poster-preview-panel">
-        <SectionHead title={selected === 0 ? "个性化知识海报" : "免费上门体验券"} description="客户：刘先生 · 预算确认阶段" />
+        <SectionHead title={selected === 0 ? "个性化知识内容" : "上门体验权益"} description={selected === 0 ? "已同步真实召回话题" : "资料待接入，不会自动发送"} />
         <div className={selected === 0 ? "knowledge-poster" : "knowledge-poster coupon"}>
-          <small>{selected === 0 ? "装修预算指南" : "专属到店权益"}</small>
-          <strong>{selected === 0 ? "预算 20 万" : "免费上门量房"}</strong>
-          <b>{selected === 0 ? "如何分配更合理？" : "赠送初步平面方案"}</b>
+          <small>{selected === 0 ? "真实话题库" : "资料尚未接入"}</small>
+          <strong>{selected === 0 ? "产品配置与品质保障" : "预约能力待核验"}</strong>
+          <b>{selected === 0 ? "按客户阶段选择下一条内容" : "暂不生成或发送权益券"}</b>
           {selected === 0 ? (
             <>
-              <span>柜体 28%</span>
+              <span>产品配置 · 已发送 10 次</span>
               <Progress value={58} />
-              <span>硬装 42%</span>
+              <span>品质保障 · 已发送 9 次</span>
               <Progress value={82} tone="purple" />
-              <span>软装 30%</span>
+              <span>同小区案例 · 已发送 8 次</span>
               <Progress value={66} tone="green" />
             </>
           ) : (
-            <div className="coupon-code">7 天内有效 · HZ0286</div>
+            <div className="coupon-code">门店预约表、服务地区与核销记录待同步</div>
           )}
         </div>
       </section>
       <aside className="panel cadence-panel">
-        <SectionHead title="发送节奏" description="发送前人工审核" />
+        <SectionHead title="发送节奏" description="阶段变化后动态确定，发送前再次核验" />
         {[
-          ["D1", "预算知识", "已发送"],
-          ["D2", "板材避坑", "已发送"],
-          ["D3", "案例对比", "待审核"],
-          ["D4", "免费量房券", "已排期"],
-          ["D5", "工期清单", "自动生成"],
-          ["D6", "活动权益", "自动生成"],
-          ["D7", "温和收口", "自动生成"],
+          ["01", "冷启动：产品配置或品质保障", "1–2 天后"],
+          ["02", "需求浮现：围绕户型与风格", "约 3 天后"],
+          ["03", "决策推进：方案或待确认事项", "约 2 天后"],
+          ["04", "持续观察：案例与装修知识", "约 7 天后"],
+          ["05", "沉默 30–60 天：新案例", "约 10 天后"],
+          ["06", "沉默 60–90 天：轻量价值", "约 15 天后"],
+          ["07", "沉默 90 天以上：低频蓄水", "约 30 天后"],
         ].map(([day, content, status], index) => (
           <div className="cadence-row" key={day}>
             <i className={index < 2 ? "done" : index === 2 ? "current" : ""}>{day}</i>
