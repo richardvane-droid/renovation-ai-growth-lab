@@ -874,6 +874,40 @@ function RecallDashboard() {
 
 function RecallPlugins() {
   const [selected, setSelected] = useState(0);
+  const [posterImage, setPosterImage] = useState("");
+  const [posterState, setPosterState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+
+  async function generatePoster() {
+    if (selected !== 0 || posterState === "loading") return;
+    const token = window.location.hash.slice(1).trim();
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(token)) {
+      setPosterState("error");
+      return;
+    }
+    setPosterState("loading");
+    try {
+      const response = await fetch("https://wecom-chat.vercel.app/api/public/recall-poster", {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Portal-Token": token,
+        },
+        body: JSON.stringify({
+          topic: "产品配置与品质保障",
+          customerStage: "沉默客户持续观察",
+          customerNeed: "预算、板材、收纳与装修避坑",
+        }),
+      });
+      const body = (await response.json()) as { imageDataUrl?: string; error?: string };
+      if (!response.ok || !body.imageDataUrl) throw new Error(body.error ?? "海报生成失败");
+      setPosterImage(body.imageDataUrl);
+      setPosterState("ready");
+    } catch {
+      setPosterState("error");
+    }
+  }
+
   return (
     <div className="screen-grid recall-plugin-grid">
       <section className="panel recall-plugin-list">
@@ -902,8 +936,32 @@ function RecallPlugins() {
         </div>
       </section>
       <section className="panel poster-preview-panel">
-        <SectionHead title={selected === 0 ? "个性化知识内容" : "上门体验权益"} description={selected === 0 ? "已同步真实召回话题" : "资料待接入，不会自动发送"} />
-        <div className={selected === 0 ? "knowledge-poster" : "knowledge-poster coupon"}>
+        <SectionHead
+          title={selected === 0 ? "个性化知识内容" : "上门体验权益"}
+          description={
+            selected !== 0
+              ? "资料待接入，不会自动发送"
+              : posterState === "loading"
+                ? "Seedream 4.5 正在生成海报底图…"
+                : posterState === "ready"
+                  ? "Seedream 4.5 已生成 · 点击可重新生成"
+                  : posterState === "error"
+                    ? "生成失败或缺少专属链接 · 点击重试"
+                    : "已同步真实召回话题 · 点击海报生成底图"
+          }
+        />
+        <div
+          aria-busy={posterState === "loading"}
+          aria-label={selected === 0 ? "生成个性化知识海报" : undefined}
+          className={selected === 0 ? "knowledge-poster" : "knowledge-poster coupon"}
+          onClick={generatePoster}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") void generatePoster();
+          }}
+          role={selected === 0 ? "button" : undefined}
+          style={posterImage ? { backgroundImage: `linear-gradient(rgba(249, 251, 255, 0.82), rgba(249, 251, 255, 0.92)), url(${posterImage})` } : undefined}
+          tabIndex={selected === 0 ? 0 : undefined}
+        >
           <small>{selected === 0 ? "真实话题库" : "资料尚未接入"}</small>
           <strong>{selected === 0 ? "产品配置与品质保障" : "预约能力待核验"}</strong>
           <b>{selected === 0 ? "按客户阶段选择下一条内容" : "暂不生成或发送权益券"}</b>

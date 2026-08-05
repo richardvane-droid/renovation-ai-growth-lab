@@ -2133,6 +2133,17 @@ a {
   padding: 23px 20px;
 }
 
+.knowledge-poster[role="button"] {
+  background-position: center;
+  background-size: cover;
+  cursor: pointer;
+}
+
+.knowledge-poster[role="button"]:focus-visible {
+  outline: 3px solid rgba(46, 107, 255, 0.35);
+  outline-offset: 3px;
+}
+
 .knowledge-poster > small {
   color: var(--muted);
   font-size: 7px;
